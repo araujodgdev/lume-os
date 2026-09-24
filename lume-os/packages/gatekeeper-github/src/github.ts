@@ -1011,7 +1011,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://github.com",
       logo: { url: GITHUB_LOGO_URL },
       color: "#f0f0f0",
-      tagline: "Triage issues, review PRs, and manage repos",
+      tagline: "Organize issues, revise PRs e gerencie repositórios",
       description:
           "Connect your GitHub account so Lume OS can read and update issues, pull requests, " +
           "and reviews on the repositories you choose.",

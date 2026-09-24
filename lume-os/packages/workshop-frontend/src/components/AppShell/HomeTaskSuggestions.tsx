@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import {
   AppWindow,
+  ArrowRight,
   ChartLineUp,
   FileText,
   Lightning,
   Presentation,
   type Icon,
 } from '@phosphor-icons/react'
+import { MonoLabel } from '../brand/BrandControls'
 
 // A few example work tasks shown under the Home composer, so a new user immediately sees the kind
 // of thing they can ask for. Picking one drops a starter prompt into the composer (it does not
@@ -24,76 +26,81 @@ type TaskSuggestion = {
 const SUGGESTIONS: TaskSuggestion[] = [
   {
     id: 'one-on-one',
-    label: 'Write a 1:1 pre-read',
-    description: 'A doc with a snapshot, things to inspect, and one ask',
+    label: 'Preparar uma 1:1',
+    description: 'Um documento com panorama, pontos de atenção e um pedido',
     icon: FileText,
     prompt:
-      'Create a document to prepare for my next 1:1 with a direct report: a current snapshot, a coaching frame, things to inspect, carryover items from last time, and one clear ask.',
+      'Crie um documento para preparar minha próxima 1:1 com alguém do meu time: um panorama atual, um enquadramento de feedback, pontos de atenção, pendências da última conversa e um pedido claro.',
   },
   {
     id: 'team-meeting',
-    label: 'Build a team meeting deck',
-    description: 'Slides with progress, risks, and what needs a decision',
+    label: 'Montar a apresentação da reunião',
+    description: 'Slides com andamento, riscos e o que precisa de decisão',
     icon: Presentation,
     prompt:
-      'Create a slide deck for my next team meeting: where things stand, what shipped, risks and blockers, and the decisions I need from the room. Ask me what the team is working on first.',
+      'Crie uma apresentação para a próxima reunião do time: onde estamos, o que foi entregue, riscos e bloqueios, e as decisões que preciso da equipe. Antes, pergunte no que o time está trabalhando.',
   },
   {
     id: 'insights',
-    label: 'Find insights in my data',
-    description: 'Turn a spreadsheet or CSV into trends and recommendations',
+    label: 'Encontrar insights nos meus dados',
+    description: 'Transformar uma planilha ou CSV em tendências e recomendações',
     icon: ChartLineUp,
     prompt:
-      'Turn a dataset I will share (a spreadsheet, CSV, or pasted table) into a narrative analysis: key trends, anomalies, the "so what", and concrete recommendations.',
+      'Transforme um conjunto de dados que vou compartilhar (planilha, CSV ou tabela colada) em uma análise narrativa: principais tendências, anomalias, o que isso significa e recomendações concretas.',
   },
   {
     id: 'workflow',
-    label: 'Automate a workflow',
-    description: 'Trigger an agent when a new email arrives',
+    label: 'Automatizar um fluxo',
+    description: 'Acionar um agente quando chegar um novo e-mail',
     icon: Lightning,
     prompt:
-      'Create an agent workflow that runs automatically when a new email arrives: read the message, decide what to do, and take action or draft a reply. Ask me which inbox to watch and what it should handle.',
+      'Crie um fluxo com agente que rode automaticamente quando chegar um novo e-mail: ler a mensagem, decidir o que fazer e agir ou rascunhar uma resposta. Pergunte qual caixa de entrada monitorar e o que ele deve tratar.',
   },
   {
     id: 'app',
-    label: 'Build a quick tool',
-    description: 'A small interactive app, calculator, or dashboard',
+    label: 'Criar uma ferramenta rápida',
+    description: 'Um pequeno app interativo, calculadora ou painel',
     icon: AppWindow,
     prompt:
-      'Build a small interactive tool I can use right here — a calculator, dashboard, or explorer. Ask me what it should do, then create it.',
+      'Crie uma pequena ferramenta interativa que eu possa usar aqui mesmo: uma calculadora, um painel ou um explorador. Pergunte o que ela deve fazer e depois crie.',
   },
 ]
 
 // One row, shared by every suggestion so the list reads as one kind of offer.
+// A numbered cell in the landing's module-card style: mono index, icon, title, description, arrow.
 function SuggestionRow({
+  index,
   icon,
   label,
   description,
   onClick,
 }: {
+  index: number
   icon: React.ReactNode
   label: string
   description: string
   onClick: () => void
 }) {
   return (
-    <li>
+    <li className="-ml-px -mt-px flex">
       <button
         type="button"
         onClick={onClick}
-        className="press group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-kumo-tint"
+        className="group flex w-full cursor-pointer flex-col gap-6 border border-kumo-line bg-kumo-base p-5 text-left transition-colors duration-500 ease-lume hover:bg-kumo-tint"
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-kumo-fill text-kumo-subtle transition-colors group-hover:text-kumo-default">
-          {icon}
+        <span className="flex items-center justify-between text-kumo-subtle">
+          <span className="font-mono text-[11px] tracking-[0.04em]">{String(index).padStart(2, '0')}</span>
+          <span className="transition-colors group-hover:text-lume-brand-ink">{icon}</span>
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] leading-[18px] font-medium tracking-[-0.25px] text-kumo-default">
+        <span className="min-w-0">
+          <span className="block text-[20px] leading-6 tracking-[-0.03em] text-kumo-default">
             {label}
           </span>
-          <span className="block truncate text-[12px] leading-4 tracking-[-0.2px] text-kumo-subtle">
+          <span className="mt-2 block text-[14px] leading-5 tracking-[-0.01em] text-kumo-subtle">
             {description}
           </span>
         </span>
+        <ArrowRight size={16} className="mt-auto text-kumo-subtle transition-transform duration-500 ease-lume group-hover:translate-x-1 group-hover:text-kumo-default" />
       </button>
     </li>
   )
@@ -122,14 +129,13 @@ export default function HomeTaskSuggestions({
   const visible = useMemo(pickSuggestions, [])
 
   return (
-    <section aria-label="Example tasks" className="flex flex-col gap-1">
-      <h3 className="px-1 pb-1 text-[12px] font-medium uppercase tracking-[0.06em] text-kumo-inactive">
-        Get started
-      </h3>
-      <ul className="flex flex-col gap-0.5">
-        {visible.map((suggestion) => (
+    <section aria-label="Sugestões de tarefas" className="flex flex-col gap-4">
+      <MonoLabel className="text-kumo-subtle">Para começar</MonoLabel>
+      <ul className="grid pl-px pt-px sm:grid-cols-3">
+        {visible.map((suggestion, i) => (
           <SuggestionRow
             key={suggestion.id}
+            index={i + 1}
             icon={<suggestion.icon size={16} />}
             label={suggestion.label}
             description={suggestion.description}

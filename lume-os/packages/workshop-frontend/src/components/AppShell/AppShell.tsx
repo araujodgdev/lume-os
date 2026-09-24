@@ -7,6 +7,7 @@ import { useConnectionLost } from '../../RpcContext'
 import Sidebar from './Sidebar'
 import CommandPalette from './CommandPalette'
 import { OPEN_COMMAND_PALETTE_EVENT } from './commandPaletteBus'
+import { useSaoPauloTime } from '../brand/AuthLayout'
 
 const STORAGE_KEY_COLLAPSED = 'gadgets:sidebar-collapsed'
 
@@ -33,6 +34,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const connectionLost = useConnectionLost()
+  const time = useSaoPauloTime()
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -104,15 +106,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Top bar. Same height as the sidebar's brand row (h-14) so they read as one continuous
             chrome strip across the top. Mostly empty — carries the mobile hamburger on the left,
             any admin TopBarNotice centered, and the reconnecting chip on the right. */}
-        <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-kumo-line bg-kumo-base px-3">
+        <div
+          data-mode="dark"
+          className="relative flex h-[60px] shrink-0 items-center justify-between border-b border-kumo-line bg-kumo-base px-3 text-kumo-default md:px-6"
+        >
           <button
             type="button"
             onClick={() => setMobileOpen((o) => !o)}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
             className="flex h-7 w-7 items-center justify-center rounded-md text-kumo-default transition-colors hover:bg-kumo-tint md:hidden"
           >
             {mobileOpen ? <X size={16} /> : <List size={16} />}
           </button>
+          <span className="hidden text-[15px] tracking-[-0.01em] text-kumo-default md:block">{time} São Paulo</span>
           <TopBarNotice />
           {/* `ml-auto` rather than the container's `justify-between`: on desktop the hamburger is
               hidden, leaving this the only in-flow child, which `justify-between` would park on the

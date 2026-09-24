@@ -48,10 +48,10 @@ export default function SidebarItem({
       {...linkProps}
       title={collapsed ? label : undefined}
       className={[
-        'group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] leading-[18px] tracking-[-0.25px] transition-colors',
+        'group relative flex h-9 items-center gap-2.5 px-2.5 text-[15px] leading-5 tracking-[-0.01em] transition-colors duration-300',
         isActive
-          ? 'bg-kumo-fill font-medium text-kumo-strong'
-          : 'font-normal text-kumo-default hover:bg-kumo-tint',
+          ? 'bg-kumo-fill text-kumo-strong'
+          : 'text-kumo-subtle hover:bg-kumo-tint hover:text-kumo-default',
       ].join(' ')}
     >
       <span

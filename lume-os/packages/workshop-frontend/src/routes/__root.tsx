@@ -55,7 +55,7 @@ function RootComponent() {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-kumo-base">
         <div className="w-8 h-8 border-2 border-kumo-brand border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-kumo-subtle">{connectionLost ? 'Waiting for server…' : 'Loading...'}</p>
+        <p className="text-sm text-kumo-subtle">{connectionLost ? 'Aguardando o servidor…' : 'Carregando…'}</p>
       </div>
     )
   }
@@ -69,7 +69,7 @@ function RootComponent() {
           onClick={() => window.location.reload()}
           className="px-4 py-2 text-sm font-medium text-kumo-inverse bg-kumo-brand rounded-lg hover:bg-kumo-brand-hover transition-colors"
         >
-          Retry
+          Tentar de novo
         </button>
       </div>
     )
@@ -80,7 +80,7 @@ function RootComponent() {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-kumo-base">
         <div className="w-8 h-8 border-2 border-kumo-brand border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-kumo-subtle">Authenticating...</p>
+        <p className="text-sm text-kumo-subtle">Autenticando…</p>
       </div>
     )
   }

@@ -10,14 +10,14 @@ interface HookToggleProps {
 /** Enable/disable toggle for bound hooks. Used in the Connections tab, Activity log, and inline chat. */
 export function HookToggle({ enabled, disabled = false, onToggle, size = 'sm' }: HookToggleProps) {
   return (
-    <Tooltip content={enabled ? 'Disable this hook.' : 'Enable this hook.'} asChild>
+    <Tooltip content={enabled ? 'Desativar este gatilho.' : 'Ativar este gatilho.'} asChild>
       <span className="inline-flex items-center">
         <Switch
           checked={enabled}
           disabled={disabled}
           size={size}
           onCheckedChange={(checked) => onToggle(checked)}
-          aria-label={enabled ? 'Disable hook' : 'Enable hook'}
+          aria-label={enabled ? 'Desativar gatilho' : 'Ativar gatilho'}
         />
       </span>
     </Tooltip>

@@ -13,7 +13,8 @@ const TABS: { mode: AuthMode; label: string; to: '/' | '/signup' }[] = [
   { mode: 'signup', label: 'Criar conta', to: '/signup' },
 ]
 
-function useSaoPauloTime() {
+/** Current wall-clock time in São Paulo ("16:29"), refreshed every 15 seconds. */
+export function useSaoPauloTime() {
   const format = () =>
     new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).format(new Date())
   const [time, setTime] = useState(format)
@@ -25,7 +26,7 @@ function useSaoPauloTime() {
 }
 
 /** Right-hand visual: dither field, the oversized mark cut into it, and the tagline in blocks. */
-function BrandPanel() {
+export function BrandPanel() {
   return (
     <div className="relative h-full overflow-hidden bg-lume-ink">
       <DitherField className="absolute inset-0" />
@@ -54,37 +55,48 @@ function BrandPanel() {
 }
 
 /**
+ * The landing's top bar: mark cell, São Paulo clock, and an optional action cell on the right edge.
+ */
+export function BrandTopBar({ action }: { action?: ReactNode }) {
+  const time = useSaoPauloTime()
+  return (
+    <header className="grid h-[60px] shrink-0 grid-cols-[1fr_auto] border-b border-lume-line bg-lume-ink text-lume-paper lg:grid-cols-2">
+      <div className="flex items-center">
+        <Link
+          to="/"
+          aria-label="Lume — início"
+          className="flex h-[60px] w-[60px] shrink-0 items-center justify-center bg-lume-paper text-lume-ink transition-colors duration-500 ease-lume hover:bg-lume-brand"
+        >
+          <SiteLogo size={24}>
+            <LumeMark size={22} />
+          </SiteLogo>
+        </Link>
+        <span className="truncate pl-4 text-[15px] tracking-[-0.01em] sm:pl-24">
+          {time} São Paulo
+        </span>
+      </div>
+      <div className="flex items-stretch justify-end lg:border-l lg:border-lume-line">{action}</div>
+    </header>
+  )
+}
+
+/**
  * Shared shell for the sign-in and sign-up pages: the landing's top bar, a 50/50 split with the form
  * panel on the left and the brand panel on the right. On small screens the brand panel collapses to
  * a dither strip above the form.
  */
 export default function AuthLayout({ mode, children }: { mode: AuthMode; children: ReactNode }) {
-  const time = useSaoPauloTime()
   const other = mode === 'signin' ? TABS[1] : TABS[0]
 
   return (
     <div className="flex min-h-screen flex-col bg-lume-ink text-lume-ink">
-      <header className="grid h-[60px] shrink-0 grid-cols-[1fr_auto] border-b border-lume-line text-lume-paper lg:grid-cols-2">
-        <div className="flex items-center">
-          <Link
-            to="/"
-            aria-label="Lume — início"
-            className="flex h-[60px] w-[60px] shrink-0 items-center justify-center bg-lume-paper text-lume-ink transition-colors duration-500 ease-lume hover:bg-lume-brand"
-          >
-            <SiteLogo size={24}>
-              <LumeMark size={22} />
-            </SiteLogo>
-          </Link>
-          <span className="truncate pl-4 text-[15px] tracking-[-0.01em] sm:pl-24">
-            {time} São Paulo
-          </span>
-        </div>
-        <div className="flex items-stretch justify-end lg:border-l lg:border-lume-line">
+      <BrandTopBar
+        action={
           <Link to={other.to} className="w-[148px] sm:w-[240px]">
             <CtaCellLabel>{other.label}</CtaCellLabel>
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <div className="grid flex-1 lg:grid-cols-2">
         <section className="flex min-w-0 flex-col bg-lume-paper">

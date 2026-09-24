@@ -102,7 +102,7 @@ export default function ConnectionConfigModal({
         <div className="max-h-56 overflow-y-auto px-5 pb-4">
           {resources.length === 0 ? (
             <p className="text-sm text-kumo-inactive text-center py-4">
-              No resources added yet
+              Nenhum recurso adicionado ainda
             </p>
           ) : (
             <div className="space-y-1">

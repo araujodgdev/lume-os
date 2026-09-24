@@ -359,7 +359,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       displayName: "Home Assistant",
       url: "https://www.home-assistant.io/",
       logo: HOMEASSISTANT_ICON,
-      tagline: "Control your smart home, read sensor state, and edit Lovelace dashboards.",
+      tagline: "Controle sua casa inteligente, leia sensores e edite painéis do Lovelace.",
       description:
           "Connect your Home Assistant instance so Lume OS can read entity state, call services " +
           "to control devices, edit dashboards, and render templates. Build agents that automate " +

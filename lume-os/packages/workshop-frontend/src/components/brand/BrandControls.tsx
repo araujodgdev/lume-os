@@ -82,3 +82,16 @@ export function CtaCellLabel({ children }: { children: ReactNode }) {
     </span>
   )
 }
+
+/**
+ * Class list for an inline primary action ("CRIAR ESPAÇO →"): ink block, mono uppercase label,
+ * terracotta on hover. Apply to a <button> or <Link>.
+ */
+export const ACTION_BUTTON =
+  'group/act inline-flex h-11 shrink-0 cursor-pointer items-center gap-3 bg-kumo-brand px-4 font-mono text-[12px] uppercase tracking-[0.04em] text-white transition-colors duration-500 ease-lume hover:bg-lume-brand hover:text-lume-ink disabled:cursor-not-allowed disabled:opacity-50'
+
+/**
+ * Class list for a secondary inline action: hairline-bordered block with the same mono label.
+ */
+export const ACTION_BUTTON_SECONDARY =
+  'group/act inline-flex h-11 shrink-0 cursor-pointer items-center gap-3 border border-kumo-default bg-transparent px-4 font-mono text-[12px] uppercase tracking-[0.04em] text-kumo-default transition-colors duration-500 ease-lume hover:bg-kumo-tint disabled:cursor-not-allowed disabled:opacity-50'

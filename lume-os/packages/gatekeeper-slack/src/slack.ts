@@ -285,7 +285,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://slack.com",
       logo: { url: SLACK_LOGO_URL },
       color: "#f4ede4",
-      tagline: "Read channels, DMs, and threads",
+      tagline: "Leia canais, mensagens diretas e conversas",
       description:
           "Connect your Slack account to give Lume OS read-only access to the workspaces, " +
           "channels, direct messages, and threads you can see. Build agents that summarize " +

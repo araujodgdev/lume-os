@@ -98,10 +98,10 @@ function PermissionCard({
       {/* Actions */}
       <div className="grid grid-cols-2 gap-2 p-3 pt-2">
         <Button variant="outline" size="sm" onClick={onDeny} className="w-full justify-center">
-          Deny
+          Recusar
         </Button>
         <Button variant="primary" size="sm" onClick={onGrant} className="w-full justify-center">
-          Allow access
+          Permitir acesso
         </Button>
       </div>
     </div>

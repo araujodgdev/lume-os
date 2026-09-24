@@ -21,6 +21,7 @@ import {
 } from './SidebarWorkspaces'
 import SidebarUtilityStrip from './SidebarUtilityStrip'
 import LumeMark from '../brand/LumeMark'
+import { MonoLabel } from '../brand/BrandControls'
 
 /**
  * The persistent left rail. Three pinned regions sandwich a single scrolling region of lists, so
@@ -48,12 +49,13 @@ export default function Sidebar({
   const gatekeeperApps = useGatekeeperApps()
 
   return (
+    // The rail is Lume's ink chrome, like the landing's top bar. `data-mode="dark"` makes every Kumo
+    // token inside resolve to the ink palette whatever the page theme is.
     <aside
-      aria-label="Primary"
+      aria-label="Navegação principal"
+      data-mode="dark"
       className={[
-        // Sidebar is the app chrome: a hair greyer than the (lighter) content canvas so the two
-        // surfaces read as distinct without a heavy divider.
-        'flex h-screen flex-col border-r border-kumo-line bg-kumo-elevated',
+        'flex h-screen flex-col border-r border-kumo-line bg-kumo-base text-kumo-default',
         collapsed ? 'w-[56px]' : 'w-[260px]',
         'shrink-0 transition-[width] duration-200 ease-out',
       ].join(' ')}
@@ -61,16 +63,23 @@ export default function Sidebar({
       {/* Brand row */}
       <div
         className={[
-          'flex h-14 shrink-0 items-center border-b border-kumo-line',
-          collapsed ? 'justify-center px-1.5' : 'justify-between gap-2 px-3',
+          'flex h-[60px] shrink-0 items-center border-b border-kumo-line',
+          collapsed ? 'justify-center' : 'justify-between gap-2 pr-2',
         ].join(' ')}
       >
-        <Link to="/" aria-label={siteName} className="flex min-w-0 items-center gap-2">
-          <SiteLogo size={20} className="shrink-0">
-            <LumeMark size={20} className="text-kumo-default shrink-0" />
-          </SiteLogo>
+        <Link to="/" aria-label={siteName} className="flex h-full min-w-0 items-center gap-3">
+          <span
+            className={[
+              'flex h-full shrink-0 items-center justify-center bg-lume-paper text-lume-ink transition-colors duration-500 ease-lume hover:bg-lume-brand',
+              collapsed ? 'w-[56px]' : 'w-[60px]',
+            ].join(' ')}
+          >
+            <SiteLogo size={22} className="shrink-0">
+              <LumeMark size={22} className="shrink-0" />
+            </SiteLogo>
+          </span>
           {!collapsed && (
-            <span className="truncate text-[14px] leading-5 font-semibold tracking-[-0.25px] text-kumo-default">
+            <span className="truncate text-[17px] leading-5 font-medium tracking-[-0.04em] text-kumo-default">
               {siteName}
             </span>
           )}
@@ -80,8 +89,8 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => openCommandPalette()}
-              aria-label="Search"
-              title="Search (⌘K)"
+              aria-label="Buscar"
+              title="Buscar (⌘K)"
               className="press flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-kumo-inactive transition-colors hover:bg-kumo-tint hover:text-kumo-default"
             >
               <MagnifyingGlass size={15} />
@@ -89,8 +98,8 @@ export default function Sidebar({
             <button
               type="button"
               onClick={onToggleCollapsed}
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
+              aria-label="Recolher menu"
+              title="Recolher menu"
               className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-kumo-inactive transition-colors hover:bg-kumo-tint hover:text-kumo-default"
             >
               <SidebarSimple size={15} />
@@ -104,8 +113,8 @@ export default function Sidebar({
         <button
           type="button"
           onClick={onToggleCollapsed}
-          aria-label="Expand sidebar"
-          title="Expand sidebar"
+          aria-label="Expandir menu"
+          title="Expandir menu"
           className="mx-auto mt-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-kumo-inactive transition-colors hover:bg-kumo-tint hover:text-kumo-default"
         >
           <SidebarSimple size={15} className="rotate-180" />
@@ -117,27 +126,28 @@ export default function Sidebar({
         <div className="flex shrink-0 flex-col gap-3 pt-3">
           {/* Primary nav */}
           <nav className="flex flex-col gap-0.5 px-2">
+            {!collapsed && <MonoLabel className="mb-2 px-2.5 text-kumo-subtle">Menu</MonoLabel>}
             <SidebarItem
               to="/"
-              label="Home"
+              label="Início"
               icon={<House size={14} weight="regular" />}
               collapsed={collapsed}
             />
             <SidebarItem
               to="/workspaces"
-              label="Workspaces"
+              label="Espaços de trabalho"
               icon={<SquaresFour size={14} weight="regular" />}
               collapsed={collapsed}
             />
             <SidebarItem
               to="/blueprints"
-              label="Blueprints"
+              label="Modelos"
               icon={<Blueprint size={14} weight="regular" />}
               collapsed={collapsed}
             />
             <SidebarItem
               to="/outputs"
-              label="Outputs"
+              label="Arquivos"
               icon={<Stack size={14} weight="regular" />}
               collapsed={collapsed}
             />
@@ -182,7 +192,7 @@ export default function Sidebar({
             })}
             <SidebarItem
               to="/explore"
-              label="Explore"
+              label="Explorar"
               icon={<Compass size={14} weight="regular" />}
               collapsed={collapsed}
             />

@@ -264,7 +264,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: getBaseUrl(this.env),
       logo: { url: EMAIL_LOGO_URL },
       color: "#fff5df",
-      tagline: "Trigger gadgets from incoming email",
+      tagline: "Acione gadgets a partir de e-mails recebidos",
       description:
           "Give Lume OS an email address it can receive messages from. Useful for triage " +
           "agents, ticket-from-email workflows, or anything driven by mail.",

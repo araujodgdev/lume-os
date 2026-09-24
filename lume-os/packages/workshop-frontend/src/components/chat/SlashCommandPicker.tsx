@@ -274,10 +274,10 @@ export function useSlashCommandPicker({
         ) : (
           <p className={PICKER_EMPTY}>
             {error
-              ? `Couldn’t load commands. ${error}`
+              ? `Não foi possível carregar os comandos. ${error}`
               : query
-                ? "No commands match your search."
-                : "No commands are available."}
+                ? "Nenhum comando corresponde à busca."
+                : "Nenhum comando disponível."}
           </p>
         )}
       </div>
@@ -301,9 +301,9 @@ export function useSlashCommandPicker({
     setIndex: selectIndex,
     status: open
       ? loading
-        ? "Loading slash commands"
+        ? "Carregando comandos de barra"
         : error
-          ? `Slash commands unavailable: ${error}`
+          ? `Comandos de barra indisponíveis: ${error}`
           : `${choices.length} slash command${choices.length === 1 ? "" : "s"} found`
       : "",
   };

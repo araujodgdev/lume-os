@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import BlueprintList from '../components/BlueprintList'
 import { useDocumentTitle } from '../useDocumentTitle'
+import PageHeader from '../components/brand/PageHeader'
 
 /**
  * "Blueprints" — the user's own + saved blueprints, laid out like the Workspaces page. Discovering
@@ -12,16 +13,16 @@ export const Route = createFileRoute('/blueprints')({
 })
 
 function BlueprintsRoutePage() {
-  useDocumentTitle('Blueprints')
+  useDocumentTitle('Modelos')
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-6 sm:px-10">
+    <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-6 sm:px-10">
       {/* Title only — Explore and Upload sit together in the list's toolbar so they share a width. */}
-      <header className="min-w-0 px-3 pb-3 pt-10">
-        <h1 className="text-2xl font-semibold tracking-tight text-kumo-default">Blueprints</h1>
-        <p className="mt-1 text-[13px] leading-[18px] tracking-[-0.25px] text-kumo-subtle">
-          Reusable starting points you've published or saved. Spin up a workspace from any of them.
-        </p>
-      </header>
+      <PageHeader
+        className="mx-3 mb-6"
+        label="Modelos"
+        title="Pontos de partida."
+        description="Modelos reutilizáveis que você publicou ou salvou. Abra um espaço a partir de qualquer um deles."
+      />
       <div className="min-h-0 flex-1">
         <BlueprintList />
       </div>

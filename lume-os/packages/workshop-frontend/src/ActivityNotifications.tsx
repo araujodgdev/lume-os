@@ -62,14 +62,14 @@ export default function ActivityNotifications({
       >
         <div className="flex items-center justify-between gap-2 px-3.5 pb-1 pt-2.5">
           <Popover.Title className="text-[11px] font-medium uppercase tracking-[0.06em] text-kumo-inactive">
-            Needs review
+            Precisa de revisão
           </Popover.Title>
           <CountBadge count={pending.length} />
         </div>
 
         {pending.length === 0 ? (
           <p className="m-0 px-3.5 pb-3 pt-1 text-[13px] leading-[18px] tracking-[-0.25px] text-kumo-subtle">
-            Nothing is waiting on you.
+            Nada aguardando você.
           </p>
         ) : (
           <div className="max-h-[min(58vh,420px)] overflow-y-auto pb-1">
@@ -125,8 +125,8 @@ export default function ActivityNotifications({
           >
             <span>
               {pending.length > PREVIEW_LIMIT
-                ? `View all ${pending.length} requests`
-                : 'View all activity'}
+                ? `Ver as ${pending.length} solicitações`
+                : 'Ver toda a atividade'}
             </span>
             <ArrowRight size={13} className="text-kumo-inactive" />
           </button>

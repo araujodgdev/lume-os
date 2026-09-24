@@ -382,7 +382,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Cloudflare.Env, Gatekeepe
       displayName: "Context",
       url: "https://workers.cloudflare.com/",
       logo: LIBRARY_ICON,
-      tagline: "Author and consult shared context collections",
+      tagline: "Crie e consulte coleções de contexto compartilhadas",
       description:
         "The Context Library lets you and your team author collections of context documents " +
         "that agents can consult to learn how to perform tasks. It is always available — no " +

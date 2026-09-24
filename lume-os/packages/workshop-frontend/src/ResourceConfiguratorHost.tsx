@@ -25,8 +25,8 @@ export default function ResourceConfiguratorHost({
   initialResourceUrl?: string
   resourceUrlPattern?: string
 }) {
-  if (disabled) return <Placeholder>Choose an account before selecting a resource.</Placeholder>
-  if (loading) return <Placeholder>Loading configurator...</Placeholder>
+  if (disabled) return <Placeholder>Escolha uma conta antes de selecionar um recurso.</Placeholder>
+  if (loading) return <Placeholder>Carregando configurador…</Placeholder>
   if (error) return <Placeholder>{error}</Placeholder>
   if (!frame) return null
 

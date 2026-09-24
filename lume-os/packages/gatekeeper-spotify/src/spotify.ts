@@ -463,7 +463,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://www.spotify.com",
       logo: { url: SPOTIFY_LOGO_URL },
       color: "#1DB954",
-      tagline: "Manage playlists, your library, and playback",
+      tagline: "Gerencie playlists, sua biblioteca e a reprodução",
       description:
         "Connect your Spotify account so Lume OS can search the catalog, read and edit your " +
         "library and playlists, and control playback on your devices. Grant whole-account access " +

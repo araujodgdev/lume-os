@@ -3,7 +3,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useKumoToastManager } from "@cloudflare/kumo";
 import { ChatInput } from "../ChatInterface";
-import MeshBackground from "../components/MeshBackground";
+import DitherField from "../components/brand/DitherField";
+import { MonoLabel } from "../components/brand/BrandControls";
 import HomeTaskSuggestions from "../components/AppShell/HomeTaskSuggestions";
 import { useAuthenticatedApi } from "../AuthContext";
 import { RpcStub } from "capnweb";
@@ -40,7 +41,7 @@ function HomePage() {
 }
 
 export function HomePageContent({ prompt }: HomeSearch) {
-  useDocumentTitle("Home");
+  useDocumentTitle("Início");
 
   const { authenticatedApi, currentUser } = useAuthenticatedApi();
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ export function HomePageContent({ prompt }: HomeSearch) {
         // Toast unless it's a connection error (reconnect refetches); a do-reset here already
         // survived the Worker's same-colo retry, so the user should hear about it.
         if (classifyRpcError(err) !== "connection") {
-          toasts.add({ title: "Couldn't load AI models", variant: "error" });
+          toasts.add({ title: "Não foi possível carregar os modelos de IA", variant: "error" });
         }
       });
     return () => {
@@ -130,7 +131,7 @@ export function HomePageContent({ prompt }: HomeSearch) {
           provisionalOverseerRef.current = null;
         }
         if (!transient) {
-          toasts.add({ title: "Failed to create workspace", variant: "error" });
+          toasts.add({ title: "Não foi possível criar o espaço de trabalho", variant: "error" });
         }
         throw err;
       }
@@ -152,31 +153,23 @@ export function HomePageContent({ prompt }: HomeSearch) {
   );
 
   return (
-    // Flat enterprise treatment: no mesh, no watermark hexagon, no prompt-glow. The AppShell's
-    // <main> already supplies a faint dotted grid as the page background.
-    <div className="relative isolate flex min-h-full w-full flex-col items-center justify-start px-4 pb-16 pt-10 sm:px-8 sm:pt-16 lg:pt-24">
-      {/* The brand hex mesh, restored and de-warmed for the new system: a gentle perspective hex
-          grid receding upward. Masked to fade out before the composer so it stays a quiet backdrop. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[460px] overflow-hidden"
-        style={{
-          maskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 95%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 95%)",
-        }}
-      >
-        <MeshBackground />
+    // Lume landing treatment: a dither band across the top, then a left-aligned display title over
+    // the composer and the numbered task cells.
+    <div className="flex min-h-full w-full flex-col">
+      <div data-mode="dark" className="h-20 shrink-0 border-b border-kumo-line bg-kumo-base sm:h-28">
+        <DitherField />
       </div>
-      <div className="flex w-full max-w-2xl flex-col items-stretch gap-8">
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-10 px-4 pb-16 pt-10 sm:px-8 sm:pt-14">
         {/* Hero */}
-        <header className="text-center">
-          <h1 className="text-3xl font-semibold tracking-tight leading-tight text-kumo-default sm:text-4xl">
-            What are we working on?
+        <header>
+          <MonoLabel accent className="text-kumo-subtle">Início</MonoLabel>
+          <h1 className="mt-6 text-[clamp(44px,6.4vw,96px)] font-[450] leading-[0.92] tracking-[-0.045em] text-kumo-default">
+            Em que vamos
+            <br />
+            trabalhar hoje?
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-[14px] leading-5 tracking-[-0.25px] text-kumo-subtle">
-            Ask a question, create an output, or create an app that works with your tools and data.
+          <p className="mt-6 max-w-[520px] text-[17px] leading-[1.45] tracking-[-0.01em] text-kumo-subtle">
+            Faça uma pergunta, gere um arquivo ou crie um app que trabalha com as suas ferramentas e dados.
           </p>
         </header>
 

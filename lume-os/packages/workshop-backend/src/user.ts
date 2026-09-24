@@ -234,7 +234,7 @@ function unavailableGatekeeperVendorInfo(id: string): GatekeeperVendorInfo {
     description: {
       displayName: id,
       url: "",
-      tagline: "Temporarily unavailable",
+      tagline: "Indisponível no momento",
       description: "This gatekeeper could not be loaded.",
     },
     supportedResources: [],

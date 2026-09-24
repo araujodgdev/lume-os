@@ -294,7 +294,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://www.notion.so",
       logo: { url: NOTION_LOGO_URL },
       color: "#f7f6f3",
-      tagline: "Read and write your Notion pages and databases",
+      tagline: "Leia e escreva nas suas páginas e bases de dados do Notion",
       description:
           "Connect your Notion workspace to let Lume OS search, read, and edit the pages and " +
           "databases you share. Build agents that draft documents, organize notes, or manage " +

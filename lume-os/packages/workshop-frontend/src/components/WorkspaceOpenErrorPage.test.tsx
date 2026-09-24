@@ -51,12 +51,12 @@ describe('WorkspaceOpenErrorPage', () => {
   it('explains how to recover when access is denied without exposing workspace metadata', async () => {
     const { container: renderedContainer, onGoToWorkspaces, onRetry } = await render('access-denied')
 
-    expect(renderedContainer.querySelector('h1')?.textContent).toBe("You don't have access to this workspace")
-    expect(renderedContainer.textContent).toContain('Ask the workspace owner to grant you access, then try again.')
+    expect(renderedContainer.querySelector('h1')?.textContent).toBe('Você não tem acesso a este espaço')
+    expect(renderedContainer.textContent).toContain('Peça acesso a quem é dono do espaço e tente de novo.')
     expect(document.activeElement).toBe(renderedContainer.querySelector('h1'))
 
     const buttons = [...renderedContainer.querySelectorAll('button')]
-    expect(buttons.map(button => button.textContent)).toEqual(['Go to workspaces', 'Try again'])
+    expect(buttons.map(button => button.textContent)).toEqual(['Ir para os espaços', 'Tentar de novo'])
     act(() => buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true })))
     act(() => buttons[1].dispatchEvent(new MouseEvent('click', { bubbles: true })))
     expect(onGoToWorkspaces).toHaveBeenCalledOnce()
@@ -66,19 +66,19 @@ describe('WorkspaceOpenErrorPage', () => {
   it('gives a missing workspace a distinct, non-retryable state', async () => {
     const { container: renderedContainer } = await render('not-found')
 
-    expect(renderedContainer.querySelector('h1')?.textContent).toBe('Workspace not found')
-    expect(renderedContainer.textContent).toContain('The link may be incorrect, or the workspace may have been deleted.')
+    expect(renderedContainer.querySelector('h1')?.textContent).toBe('Espaço não encontrado')
+    expect(renderedContainer.textContent).toContain('O link pode estar errado, ou o espaço pode ter sido excluído.')
     expect([...renderedContainer.querySelectorAll('button')].map(button => button.textContent))
-      .toEqual(['Go to workspaces'])
+      .toEqual(['Ir para os espaços'])
   })
 
   it('keeps unexpected failures retryable', async () => {
     const { container: renderedContainer } = await render('unexpected')
 
-    expect(renderedContainer.querySelector('h1')?.textContent).toBe("We couldn't load this workspace")
-    expect(renderedContainer.textContent).toContain('Try again. If the problem continues, return to your workspaces.')
+    expect(renderedContainer.querySelector('h1')?.textContent).toBe('Não foi possível carregar este espaço')
+    expect(renderedContainer.textContent).toContain('Tente de novo. Se o problema continuar, volte para os seus espaços.')
     expect([...renderedContainer.querySelectorAll('button')].map(button => button.textContent))
-      .toEqual(['Go to workspaces', 'Try again'])
+      .toEqual(['Ir para os espaços', 'Tentar de novo'])
   })
 
   it('classifies stable open error codes without treating unexpected errors as expected', () => {

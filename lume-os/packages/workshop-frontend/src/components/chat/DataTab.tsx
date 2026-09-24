@@ -52,7 +52,7 @@ export default function DataTab() {
                 checked={selectedIds.size === sampleDataRows.length}
                 indeterminate={selectedIds.size > 0 && selectedIds.size < sampleDataRows.length}
                 onValueChange={toggleAll}
-                aria-label="Select all rows"
+                aria-label="Selecionar todas as linhas"
               />
               <Table.Head>Channel</Table.Head>
               <Table.Head>Messages</Table.Head>
@@ -66,7 +66,7 @@ export default function DataTab() {
                 <Table.CheckCell
                   checked={selectedIds.has(row.id)}
                   onValueChange={() => toggleRow(row.id)}
-                  aria-label={`Select ${row.channel}`}
+                  aria-label={`Selecionar ${row.channel}`}
                 />
                 <Table.Cell>
                   <span className="font-mono text-sm text-kumo-default">{row.channel}</span>

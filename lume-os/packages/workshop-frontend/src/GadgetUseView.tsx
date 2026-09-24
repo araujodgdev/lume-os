@@ -64,7 +64,7 @@ export default function GadgetUseView({
         <TopBarNotice />
         {/* Left: logo / title */}
         <div className="flex items-center gap-2 min-w-0">
-          <Link to="/" aria-label="Home" className="flex-shrink-0 hover:opacity-80 transition-opacity">
+          <Link to="/" aria-label="Início" className="flex-shrink-0 hover:opacity-80 transition-opacity">
             <SiteLogo size={22}>
               <LumeMark size={22} className="text-kumo-default" />
             </SiteLogo>
@@ -133,7 +133,7 @@ export default function GadgetUseView({
           />
         ) : (
           <div className="flex h-full items-center justify-center px-6 text-center">
-            <p className="text-sm text-kumo-subtle">This workspace has no gadgets yet.</p>
+            <p className="text-sm text-kumo-subtle">Este espaço ainda não tem gadgets.</p>
           </div>
         )}
       </div>

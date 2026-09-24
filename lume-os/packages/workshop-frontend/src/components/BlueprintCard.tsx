@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import {
-  Hexagon,
   Robot,
   Lightning,
   Star,
@@ -10,16 +9,19 @@ import {
   BlueprintMetadata,
 } from "@gadgets/workshop-shared/api";
 import { VendorDescription } from "@gadgets/workshop-shared/gatekeeper";
+import LumeMark from "./brand/LumeMark";
 
+// Flat tiles in the Lume palette (the landing's module colours plus ink, panel grey and terracotta).
+// Kept as from/to pairs so callers can keep using `bg-gradient-to-br`.
 const gradients = [
-  "from-[#4A154B] to-[#7C3085]",
-  "from-[#0052CC] to-[#2684FF]",
-  "from-[#5865F2] to-[#7983F5]",
-  "from-[#34A853] to-[#4285F4]",
-  "from-[#24292e] to-[#555]",
-  "from-[#E01E5A] to-[#ECB22E]",
-  "from-orange-600 to-red-600",
-  "from-emerald-600 to-teal-600",
+  "from-[#232323] to-[#232323]",
+  "from-[#d97757] to-[#d97757]",
+  "from-[#4f6d8f] to-[#4f6d8f]",
+  "from-[#3a3a3a] to-[#3a3a3a]",
+  "from-[#b08a2e] to-[#b08a2e]",
+  "from-[#5f7f5a] to-[#5f7f5a]",
+  "from-[#b0502f] to-[#b0502f]",
+  "from-[#5c5c5c] to-[#5c5c5c]",
 ];
 
 export function getGradient(id: string) {
@@ -51,7 +53,7 @@ export function uniqueBindingBadges(
         b.gatekeeperName.charAt(0).toUpperCase() + b.gatekeeperName.slice(1);
     } else if (b.type === "aiModel") {
       key = "aiModel";
-      label = "AI Model";
+      label = "Modelo de IA";
     } else {
       key = "agentSpawner";
       label = "Agent";
@@ -129,7 +131,7 @@ export function BlueprintCard({
       <Link
         to="/blueprint/$id"
         params={{ id }}
-        aria-label={`Open blueprint ${metadata.title}`}
+        aria-label={`Abrir o modelo ${metadata.title}`}
         className="absolute inset-0 z-10 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
       />
       <div className="pointer-events-none relative z-20 flex flex-1 flex-col p-4">
@@ -137,14 +139,14 @@ export function BlueprintCard({
           <div
             className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${getGradient(id)}`}
           >
-            <Hexagon size={16} className="text-white/75" weight="bold" />
+            <LumeMark size={18} className="text-white/85" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="m-0 line-clamp-2 text-[15px] leading-5 font-medium tracking-[-0.25px] text-kumo-default">
               {metadata.title}
             </p>
             <p className={`mt-1.5 line-clamp-2 min-h-8 text-[12px] leading-4 font-normal tracking-[-0.2px] ${metadata.description ? "text-kumo-subtle" : "text-kumo-inactive italic"}`}>
-              {metadata.description || "No description"}
+              {metadata.description || "Sem descrição"}
             </p>
           </div>
         </div>

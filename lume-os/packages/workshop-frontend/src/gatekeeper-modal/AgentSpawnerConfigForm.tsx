@@ -37,7 +37,7 @@ export function validateSpawnerEnv(rows: SpawnerEnvRow[]): string | null {
       return err instanceof Error ? err.message : String(err)
     }
     if (seen.has(row.name)) {
-      return `Two bindings are both named "${row.name}".`
+      return `Há dois vínculos com o nome "${row.name}".`
     }
     seen.add(row.name)
   }
@@ -83,11 +83,11 @@ export function AgentSpawnerConfigForm({
   return (
     <section className="grid gap-4">
       <ConnectionConfigField
-        label="Display name"
-        description="Name this agent capability for this connection."
+        label="Nome de exibição"
+        description="Dê um nome a esta capacidade de agente nesta conexão."
       >
         <WorkshopInput
-          aria-label="Agent display name"
+          aria-label="Nome de exibição do agente"
           placeholder="e.g. Email Responder"
           value={displayName}
           onChange={(e) => onDisplayNameChange(e.target.value)}
@@ -96,23 +96,23 @@ export function AgentSpawnerConfigForm({
       </ConnectionConfigField>
 
       <ConnectionConfigField
-        label="Model"
-        description="Choose the model spawned agents will use."
+        label="Modelo"
+        description="Escolha o modelo que os agentes gerados vão usar."
       >
         <Select
-          aria-label="Agent model"
+          aria-label="Modelo do agente"
           className="w-full text-sm [&_button]:!h-9"
           container={selectContainer}
-          placeholder="Select a model"
+          placeholder="Selecione um modelo"
           value={modelId}
           onValueChange={(v) => onModelIdChange(v as string | null)}
           renderValue={(id) => {
-            if (id === null) return 'None (no agent)'
+            if (id === null) return 'Nenhum (sem agente)'
             return availableModels.find((m) => m.id === id)?.name ?? String(id)
           }}
         >
           <Select.Option value={null as any}>
-            None (no agent)
+            Nenhum (sem agente)
           </Select.Option>
           {availableModels.map(model => (
             <Select.Option key={model.id} value={model.id}>
@@ -121,30 +121,30 @@ export function AgentSpawnerConfigForm({
           ))}
         </Select>
         <p className="mt-1 text-[12px] leading-4 font-normal tracking-[-0.2px] text-kumo-subtle">
-          Choose "None" to create conversations without an agent.
+          Escolha "Nenhum" para criar conversas sem agente.
         </p>
       </ConnectionConfigField>
 
       <ConnectionConfigField
-        label="Agent bindings"
-        description="What spawned agents may use, and the names they see it under."
+        label="Vínculos do agente"
+        description="O que os agentes gerados podem usar e os nomes com que eles veem cada item."
       >
         {env.length === 0 ? (
           <p className="text-[12px] leading-4 font-normal tracking-[-0.2px] text-kumo-subtle">
-            Nothing is available to offer spawned agents here. Create the agent from a gadget's
-            Connections tab to give it access to that gadget and its resources.
+            Nada disponível para oferecer aos agentes gerados aqui. Crie o agente pela aba Conexões
+            de um gadget para dar acesso a esse gadget e aos recursos dele.
           </p>
         ) : (
           <div className="grid gap-2">
             {env.map((row, index) => (
               <div key={`${row.target}:${index}`} className="flex items-center gap-2">
                 <Checkbox
-                  aria-label={`Give spawned agents access to ${row.targetTitle}`}
+                  aria-label={`Dar aos agentes gerados acesso a ${row.targetTitle}`}
                   checked={row.enabled}
                   onCheckedChange={(checked) => updateRow(index, { enabled: checked === true })}
                 />
                 <WorkshopInput
-                  aria-label={`Binding name for ${row.targetTitle}`}
+                  aria-label={`Nome do vínculo de ${row.targetTitle}`}
                   value={row.name}
                   disabled={!row.enabled}
                   onChange={(e) => updateRow(index, { name: e.target.value })}

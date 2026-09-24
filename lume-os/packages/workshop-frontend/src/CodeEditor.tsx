@@ -68,7 +68,7 @@ export default function CodeEditor({ filename, ytext, isReady, height = '100%' }
         className="flex justify-center items-center bg-kumo-base text-kumo-subtle"
         style={{ height }}
       >
-        Select a file to start editing
+        Selecione um arquivo para começar a editar
       </div>
     )
   }

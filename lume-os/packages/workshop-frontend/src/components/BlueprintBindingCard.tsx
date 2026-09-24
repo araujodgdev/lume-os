@@ -16,14 +16,14 @@ export function suggestValueLabel(spec: GatekeeperCreationSpec, title?: string):
   const displayTitle = title?.trim()
   switch (spec.type) {
     case 'gatekeeper':
-      return displayTitle ? `Suggest "${displayTitle}" by default` : 'Suggest this resource by default'
+      return displayTitle ? `Sugerir "${displayTitle}" por padrão` : 'Sugerir este recurso por padrão'
     case 'aiModel':
-      return displayTitle ? `Suggest "${displayTitle}" by default` : 'Suggest this model by default'
+      return displayTitle ? `Sugerir "${displayTitle}" por padrão` : 'Sugerir este modelo por padrão'
     case 'agentSpawner':
-      return displayTitle ? `Suggest "${displayTitle}" by default` : 'Suggest this agent setup by default'
+      return displayTitle ? `Sugerir "${displayTitle}" por padrão` : 'Sugerir esta configuração de agente por padrão'
     case 'ambient':
       // Ambient resources are auto-provided and excluded from blueprints, so this never renders.
-      return 'Suggest this by default'
+      return 'Sugerir isto por padrão'
   }
 }
 
@@ -60,13 +60,13 @@ export function BlueprintBindingCard({
       <div className={headerClass}>
         <GatekeeperIcon vendorId={vendorId} fallbackText={resourceTitle || bindingName} />
         <div className="min-w-0 flex-1">
-          <label htmlFor={titleId} className="sr-only">Connection name</label>
+          <label htmlFor={titleId} className="sr-only">Nome da conexão</label>
           <WorkshopInput
             id={titleId}
-            aria-label={`Name for ${bindingName}`}
+            aria-label={`Nome de ${bindingName}`}
             value={annotation.title}
             onChange={(e) => onChange({ ...annotation, title: e.target.value })}
-            placeholder="Connection name"
+            placeholder="Nome da conexão"
             className="!h-8 w-full bg-kumo-base text-[13px] leading-5 font-medium tracking-[-0.25px]"
           />
           <p className="mt-1 text-[11px] leading-4 tracking-[-0.1px] text-kumo-inactive">
@@ -78,10 +78,10 @@ export function BlueprintBindingCard({
       <div className={descriptionWrapperClass}>
         <WorkshopInputArea
           id={descriptionId}
-          aria-label={`Help text for ${displayTitle}`}
+          aria-label={`Texto de ajuda de ${displayTitle}`}
           value={annotation.description}
           onChange={(e) => onChange({ ...annotation, description: e.target.value })}
-          placeholder="What should people connect here?"
+          placeholder="O que as pessoas devem conectar aqui?"
           rows={2}
           autoFocus={autoFocusDescription}
           className="w-full resize-none"

@@ -439,7 +439,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://google.com",
       logo: { url: GOOGLE_LOGO_URL },
       color: "#e8f0fe",
-      tagline: "Draft replies, edit docs, read sheets, manage calendars, and analyze data",
+      tagline: "Rascunhe respostas, edite documentos, leia planilhas, gerencie agendas e analise dados",
       description:
           "Connect your Google account to give Lume OS access to Gmail, Google Docs, Google " +
           "Sheets, Google Calendar, and BigQuery. Build agents that triage email, draft and edit " +

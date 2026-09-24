@@ -406,7 +406,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Cloudflare.Env> {
       displayName: "Scheduled Tasks",
       url: "https://workers.cloudflare.com/",
       logo: SCHEDULER_ICON,
-      tagline: "Run workspace tasks on a schedule",
+      tagline: "Rode tarefas dos espaços em horários agendados",
       description: "Register recurring and one-shot workspace tasks.",
       autoProvisionsAccount: true,
       providesAuth: false,

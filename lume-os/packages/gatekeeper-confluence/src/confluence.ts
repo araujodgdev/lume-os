@@ -243,7 +243,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://www.atlassian.com/software/confluence",
       logo: { url: CONFLUENCE_LOGO_URL },
       color: "#deebff",
-      tagline: "Read and write your Confluence pages and spaces",
+      tagline: "Leia e escreva nas suas páginas e espaços do Confluence",
       description:
         "Connect your Atlassian Confluence site to let Lume OS search, read, and edit the pages, " +
         "blog posts, and spaces you share. Build agents that draft documentation, organize " +

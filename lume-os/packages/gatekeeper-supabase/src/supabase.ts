@@ -344,7 +344,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://supabase.com",
       logo: { url: SUPABASE_LOGO_URL },
       color: "#f0fdf4",
-      tagline: "Query Postgres, inspect schema, and manage projects",
+      tagline: "Consulte o Postgres, inspecione o schema e gerencie projetos",
       description:
           "Connect your Supabase account so Lume OS can run SQL against your project databases, " +
           "explore schema, and inspect edge functions and storage for the projects you choose.",

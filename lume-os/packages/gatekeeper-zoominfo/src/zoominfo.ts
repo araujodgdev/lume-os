@@ -328,7 +328,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://www.zoominfo.com",
       logo: { url: ZOOMINFO_LOGO_URL },
       color: "#EE3524",
-      tagline: "Search and enrich B2B company & contact intelligence",
+      tagline: "Busque e enriqueça dados B2B de empresas e contatos",
       description:
         "Connect your ZoomInfo account so Lume OS can resolve filter values, search companies, " +
         "contacts, intent signals, scoops, and news, and enrich matched records into full detail. " +

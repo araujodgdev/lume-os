@@ -12,6 +12,7 @@ import { useAuthenticatedApi } from "./AuthContext";
 import { BindingBadge, uniqueBindingBadges } from "./components/BlueprintCard";
 import { BlueprintPreviewPlaceholder } from "./components/BlueprintPreviewImage";
 import ViewToggle from "./components/ViewToggle";
+import PageHeader from "./components/brand/PageHeader";
 
 type VendorMap = Map<string, VendorDescription>;
 
@@ -53,7 +54,7 @@ export default function BlueprintsPage() {
       .catch((err) => {
         console.error("Failed to load Explore data:", err);
         toastsRef.current.add({
-          title: "Failed to load featured blueprints",
+          title: "Não foi possível carregar os modelos em destaque",
           variant: "error",
         });
       })
@@ -77,21 +78,18 @@ export default function BlueprintsPage() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-6 sm:px-10">
-      <header className="flex items-end justify-between gap-4 px-3 pb-4 pt-10">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-kumo-default">Explore</h1>
-          <p className="mt-1 text-[13px] leading-[18px] tracking-[-0.25px] text-kumo-subtle">
-            Discover featured blueprints to use as starting points. Open one to create a workspace
-            from it, or save it to reuse later.
-          </p>
-        </div>
-        <ViewToggle view={view} onChange={setView} />
-      </header>
+      <PageHeader
+        className="mx-3 mb-6"
+        label="Explorar"
+        title="Descubra modelos."
+        description="Modelos em destaque para usar como ponto de partida. Abra um para criar um espaço ou salve para usar depois."
+        actions={<ViewToggle view={view} onChange={setView} />}
+      />
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 px-3 pb-3">
-        <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-kumo-inactive">
-          Featured
+        <span className="font-mono text-[12px] uppercase tracking-[0.04em] text-kumo-subtle">
+          Em destaque
         </span>
         <div className="relative sm:w-64">
           <MagnifyingGlass
@@ -102,7 +100,7 @@ export default function BlueprintsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search blueprints…"
+            placeholder="Buscar modelos…"
             className="h-9 w-full rounded-lg border border-kumo-line bg-kumo-base pl-9 pr-4 text-[13px] tracking-[-0.25px] text-kumo-default placeholder:text-kumo-inactive transition-[border-color,box-shadow] duration-150 ease-out focus:border-kumo-ring focus:outline-none focus:ring-[3px] focus:ring-kumo-ring/15"
           />
         </div>
@@ -115,13 +113,13 @@ export default function BlueprintsPage() {
           <EmptySection
             title={
               search
-                ? "No blueprints match"
-                : "No featured blueprints yet"
+                ? "Nenhum modelo encontrado"
+                : "Nenhum modelo em destaque ainda"
             }
             message={
               search
-                ? "Try a different search term."
-                : "Featured blueprints will appear here when they’re published. You can still create blueprints from your own workspaces."
+                ? "Tente outro termo de busca."
+                : "Os modelos em destaque aparecem aqui quando forem publicados. Você ainda pode criar modelos a partir dos seus espaços."
             }
           />
         ) : view === "grid" ? (
@@ -156,7 +154,7 @@ function BlueprintThumbnail({ blueprint }: { blueprint: BlueprintPublicInfo }) {
       {blueprint.screenshotUrl ? (
         <img
           src={blueprint.screenshotUrl}
-          alt={`Screenshot of ${blueprint.metadata.title}`}
+          alt={`Captura de tela de ${blueprint.metadata.title}`}
           className="h-full w-full object-cover"
           loading="lazy"
         />
@@ -181,7 +179,7 @@ function FeaturedBlueprintCard({
       <Link
         to="/blueprint/$id"
         params={{ id: blueprint.id }}
-        aria-label={`Open featured blueprint ${blueprint.metadata.title}`}
+        aria-label={`Abrir o modelo em destaque ${blueprint.metadata.title}`}
         className="absolute inset-0 z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
       />
 
@@ -200,7 +198,7 @@ function FeaturedBlueprintCard({
               blueprint.metadata.description ? "text-kumo-subtle" : "italic text-kumo-inactive"
             }`}
           >
-            {blueprint.metadata.description || "No description"}
+            {blueprint.metadata.description || "Sem descrição"}
           </p>
           {badges.length > 0 && (
             <div className="relative z-20 mt-2 flex flex-wrap gap-1">
@@ -246,7 +244,7 @@ function FeaturedBlueprintRow({
             blueprint.metadata.description ? "text-kumo-subtle" : "italic text-kumo-inactive"
           }`}
         >
-          {blueprint.metadata.description || "No description"}
+          {blueprint.metadata.description || "Sem descrição"}
         </p>
       </div>
       {badges.length > 0 && (

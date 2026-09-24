@@ -484,7 +484,7 @@ export class GatekeeperVendor extends WorkerEntrypoint<Env> implements Gatekeepe
       url: "https://linear.app",
       logo: { url: LINEAR_LOGO_URL },
       color: "#f4f5f8",
-      tagline: "Triage, create, and update issues",
+      tagline: "Organize, crie e atualize issues",
       description:
         "Connect your Linear account so Lume OS can read and manage issues, projects, and " +
         "comments across the teams you choose.",

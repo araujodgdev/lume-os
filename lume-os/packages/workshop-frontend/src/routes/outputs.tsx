@@ -27,6 +27,7 @@ import { useOutputFormats } from '../components/format/useOutputFormats'
 import NewFormatRow from '../components/format/NewFormatRow'
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog'
 import { WorkshopButton, WorkshopIconButton } from '../components/WorkshopControls'
+import PageHeader from '../components/brand/PageHeader'
 
 // The Outputs page: everything the user's workspaces have produced, in one place, so they don't
 // have to remember which workspace they made a thing in. Backed by an index in the user's own
@@ -39,12 +40,12 @@ export const Route = createFileRoute('/outputs')({
 function formatRelativeTime(date: Date): string {
   const diff = Date.now() - date.getTime()
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1) return 'agora mesmo'
+  if (minutes < 60) return `há ${minutes} min`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return `há ${hours} h`
   const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return `há ${days} d`
 }
 
 function outputKey(output: OutputSummary): string {
@@ -87,7 +88,7 @@ function OutputMenu({
           render={
             <button
               type="button"
-              aria-label="Output actions"
+              aria-label="Ações do arquivo"
               className="cursor-pointer rounded-md p-1.5 text-kumo-subtle transition-colors hover:bg-kumo-fill hover:text-kumo-default focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
             >
               <DotsThreeVertical size={16} />
@@ -96,19 +97,19 @@ function OutputMenu({
         />
         <DropdownMenu.Content className={MENU_CONTENT}>
           <DropdownMenu.Item onClick={onOpen} className={MENU_ITEM}>
-            <ArrowSquareOut size={13} className="mr-2" /> Open
+            <ArrowSquareOut size={13} className="mr-2" /> Abrir
           </DropdownMenu.Item>
           <DropdownMenu.Item onClick={onOpenWorkspace} className={MENU_ITEM}>
-            <Cube size={13} className="mr-2" /> Open workspace
+            <Cube size={13} className="mr-2" /> Abrir espaço
           </DropdownMenu.Item>
           {onRename && (
             <DropdownMenu.Item onClick={onRename} className={MENU_ITEM}>
-              <PencilSimple size={13} className="mr-2" /> Rename
+              <PencilSimple size={13} className="mr-2" /> Renomear
             </DropdownMenu.Item>
           )}
           {onRemove && (
             <DropdownMenu.Item onClick={onRemove} className={`${MENU_ITEM} text-kumo-danger`}>
-              <Trash size={13} className="mr-2" /> Remove
+              <Trash size={13} className="mr-2" /> Remover
             </DropdownMenu.Item>
           )}
         </DropdownMenu.Content>
@@ -119,9 +120,9 @@ function OutputMenu({
 
 // Secondary line under an output's title in the grid, where there's no room for meta columns.
 function subtitle(output: OutputSummary): string {
-  const parts = [output.workspaceTitle || 'Untitled workspace']
-  if (output.owner) parts.push(`Shared by ${output.owner.name}`)
-  parts.push(`Workspace active ${formatRelativeTime(output.lastActive)}`)
+  const parts = [output.workspaceTitle || 'Espaço sem título']
+  if (output.owner) parts.push(`Compartilhado por ${output.owner.name}`)
+  parts.push(`Espaço ativo ${formatRelativeTime(output.lastActive)}`)
   return parts.join(' · ')
 }
 
@@ -130,10 +131,10 @@ function OutputProvenance({ owner }: { owner?: OutputSummary['owner'] }) {
   return (
     <span
       className="flex w-52 items-center gap-1 truncate whitespace-nowrap"
-      title={owner ? `In a workspace shared by ${owner.name}` : 'In a workspace you created'}
+      title={owner ? `Em um espaço compartilhado por ${owner.name}` : 'Em um espaço criado por você'}
     >
       {owner ? <ShareNetwork size={11} /> : <User size={11} />}
-      <span className="truncate">{owner ? `Shared by ${owner.name}` : 'Created by you'}</span>
+      <span className="truncate">{owner ? `Compartilhado por ${owner.name}` : 'Criado por você'}</span>
     </span>
   )
 }
@@ -163,7 +164,7 @@ function OutputCard({
         <FormatTile output={output.output} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium leading-[18px] tracking-[-0.25px] text-kumo-default">
-            {output.title || 'Untitled'}
+            {output.title || 'Sem título'}
           </p>
           <p className="mt-0.5 truncate text-[12px] leading-4 tracking-[-0.2px] text-kumo-subtle">
             {subtitle(output)}
@@ -190,10 +191,10 @@ function OutputRow({
       <FormatTile output={output.output} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium tracking-[-0.25px] text-kumo-default">
-          {output.title || 'Untitled'}
+          {output.title || 'Sem título'}
         </p>
         <p className="mt-0.5 truncate text-[12px] leading-4 tracking-[-0.2px] text-kumo-subtle">
-          {formatOf(output.output).noun} · {output.workspaceTitle || 'Untitled workspace'}
+          {formatOf(output.output).noun} · {output.workspaceTitle || 'Espaço sem título'}
         </p>
       </div>
       {/* Fixed-width meta columns so rows line up like a table. */}
@@ -261,9 +262,9 @@ function ScopeSelect({
   // of the other two. Anything shorter ("Anyone", "All") reads as a directory of other people,
   // when nothing here is reachable without having made it or been given access.
   const options: { value: OwnerFilter; label: string }[] = [
-    { value: 'all', label: 'Yours and shared' },
-    { value: 'mine', label: 'Created by you' },
-    { value: 'shared', label: 'Shared with you' },
+    { value: 'all', label: 'Seus e compartilhados' },
+    { value: 'mine', label: 'Criados por você' },
+    { value: 'shared', label: 'Compartilhados com você' },
   ]
   const current = options.find((o) => o.value === value)!
   const CurrentIcon = SCOPE_ICON[value]
@@ -345,21 +346,21 @@ function RenameOutputDialog({
           <div className="flex items-start justify-between gap-4 border-b border-kumo-line px-5 py-4">
             <div className="min-w-0">
               <Dialog.Title className="text-[15px] font-medium leading-5 tracking-[-0.3px] text-kumo-default">
-                Rename output
+                Renomear arquivo
               </Dialog.Title>
               {/* Renames the output itself, unlike the sidebar's workspace rename, which relabels
                   only your own copy. */}
               <Dialog.Description className="mt-1 text-[12px] leading-4 text-kumo-subtle">
-                Renames the output for everyone with access to “{output?.workspaceTitle}”.
+                Renomeia o arquivo para todos com acesso a “{output?.workspaceTitle}”.
               </Dialog.Description>
             </div>
-            <WorkshopIconButton type="button" className="!h-7 !w-7" disabled={busy} aria-label="Close" onClick={onClose}>
+            <WorkshopIconButton type="button" className="!h-7 !w-7" disabled={busy} aria-label="Fechar" onClick={onClose}>
               <X size={16} />
             </WorkshopIconButton>
           </div>
           <div className="px-5 py-4">
             <label className="block text-[12px] font-medium text-kumo-subtle" htmlFor="rename-output-title">
-              Name
+              Nome
             </label>
             <input
               id="rename-output-title"
@@ -371,9 +372,9 @@ function RenameOutputDialog({
             />
           </div>
           <div className="flex items-center justify-end gap-2 border-t border-kumo-line px-5 py-3">
-            <WorkshopButton type="button" disabled={busy} onClick={onClose}>Cancel</WorkshopButton>
+            <WorkshopButton type="button" disabled={busy} onClick={onClose}>Cancelar</WorkshopButton>
             <WorkshopButton tone="primary" type="submit" disabled={busy || !value.trim()}>
-              {busy ? 'Saving…' : 'Save'}
+              {busy ? 'Salvando…' : 'Salvar'}
             </WorkshopButton>
           </div>
         </form>
@@ -388,7 +389,7 @@ function RenameOutputDialog({
 type TypeFilter = 'all' | string
 
 function OutputsPage() {
-  useDocumentTitle('Outputs')
+  useDocumentTitle('Arquivos')
   const { authenticatedApi } = useAuthenticatedApi()
   const navigate = useNavigate()
   const toasts = useKumoToastManager()
@@ -445,7 +446,7 @@ function OutputsPage() {
       // A failed *refresh* must not discard a page already showing something: it is still the last
       // good answer, and the next focus retries. The error state is for having nothing to show.
       if (loadedOnce.current) {
-        toastsRef.current.add({ title: "Couldn't refresh outputs", variant: 'error' })
+        toastsRef.current.add({ title: "Não foi possível atualizar os arquivos", variant: 'error' })
       } else {
         setLoadError(true)
       }
@@ -494,7 +495,7 @@ function OutputsPage() {
       setRenameOutput(null)
     } catch (err) {
       console.error('Failed to rename output:', err)
-      toasts.add({ title: "Couldn't rename this output", variant: 'error' })
+      toasts.add({ title: "Não foi possível renomear este arquivo", variant: 'error' })
     } finally {
       gadget?.[Symbol.dispose]()
       overseer?.[Symbol.dispose]()
@@ -516,7 +517,7 @@ function OutputsPage() {
       setRemoveOutput(null)
     } catch (err) {
       console.error('Failed to remove output:', err)
-      toasts.add({ title: "Couldn't remove this output", variant: 'error' })
+      toasts.add({ title: "Não foi possível remover este arquivo", variant: 'error' })
     } finally {
       gadget?.[Symbol.dispose]()
       overseer?.[Symbol.dispose]()
@@ -574,15 +575,13 @@ function OutputsPage() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-6 sm:px-10">
-      <header className="flex items-end justify-between gap-4 px-3 pb-4 pt-10">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-kumo-default">Outputs</h1>
-          <p className="mt-1 text-[13px] leading-[18px] tracking-[-0.25px] text-kumo-subtle">
-            Everything your workspaces have produced, in one place.
-          </p>
-        </div>
-        <ViewToggle view={view} onChange={setView} />
-      </header>
+      <PageHeader
+        className="mx-3 mb-6"
+        label="Arquivos"
+        title="Tudo o que foi produzido."
+        description="Tudo o que os seus espaços produziram, em um só lugar."
+        actions={<ViewToggle view={view} onChange={setView} />}
+      />
 
       {/* Toolbar: format chips on the left (the browsing axis), scope + search on the right (the
           refining controls). Configured categories stay visible with zero counts. */}
@@ -591,7 +590,7 @@ function OutputsPage() {
         <div className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 sidebar-scroll">
           {showTypeFilters && (
             <>
-              <FilterChip active={typeFilter === 'all'} label="All" count={inTypeScope.length}
+              <FilterChip active={typeFilter === 'all'} label="Todos" count={inTypeScope.length}
                           onClick={() => setTypeFilter('all')} />
               {presentTypes.map(([id, plural]) => (
                 <FilterChip
@@ -623,7 +622,7 @@ function OutputsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search outputs…"
+              placeholder="Buscar arquivos…"
               className="h-9 w-full rounded-lg border border-kumo-line bg-kumo-base pl-9 pr-4 text-[13px] tracking-[-0.25px] text-kumo-default placeholder:text-kumo-inactive transition-[border-color,box-shadow] duration-150 ease-out focus:border-kumo-ring focus:outline-none focus:ring-[3px] focus:ring-kumo-ring/15"
             />
           </div>
@@ -639,9 +638,9 @@ function OutputsPage() {
           </div>
         ) : loadError ? (
           <div className="py-12 text-center text-sm">
-            <p className="text-kumo-danger">Something went wrong loading your outputs.</p>
+            <p className="text-kumo-danger">Algo deu errado ao carregar seus arquivos.</p>
             <button onClick={() => setReloadToken((n) => n + 1)} className="mt-1 text-kumo-brand underline">
-              Try again
+              Tentar de novo
             </button>
           </div>
         ) : filtered.length === 0 ? (
@@ -651,16 +650,16 @@ function OutputsPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-kumo-default">
-                {isFiltered ? 'No outputs match' : 'No outputs yet'}
+                {isFiltered ? 'Nenhum arquivo encontrado' : 'Nenhum arquivo ainda'}
               </p>
               <p className="mt-1 text-[13px] leading-[18px] text-kumo-subtle">
                 {isFiltered
-                  ? 'Try a different filter or search term.'
-                  : 'Anything your workspaces build will show up here.'}
+                  ? 'Tente outro filtro ou termo de busca.'
+                  : 'Tudo o que os seus espaços criarem aparece aqui.'}
               </p>
             </div>
             {/* Offer the deployment's formats here rather than sending them to the home page. */}
-            {!isFiltered && <NewFormatRow label="Start with" />}
+            {!isFiltered && <NewFormatRow label="Comece com" />}
           </div>
         ) : view === 'grid' ? (
           <div className="grid grid-cols-2 gap-4 px-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -695,16 +694,16 @@ function OutputsPage() {
       />
       <DeleteConfirmationDialog
         open={removeOutput !== null}
-        title={`Remove “${removeOutput?.title || 'Untitled'}”?`}
+        title={`Remover “${removeOutput?.title || 'Sem título'}”?`}
         description={
           <>
-            This permanently removes the output from “{removeOutput?.workspaceTitle}”
-            {removeOutput?.owner ? ', for everyone with access to that workspace' : ''}. Other
-            outputs in that workspace stay available. This can’t be undone.
+            Isso remove o arquivo de “{removeOutput?.workspaceTitle}” de forma permanente
+            {removeOutput?.owner ? ', para todos com acesso a esse espaço' : ''}. Os outros
+            arquivos desse espaço continuam disponíveis. Essa ação não pode ser desfeita.
           </>
         }
-        confirmLabel="Remove"
-        confirmingLabel="Removing…"
+        confirmLabel="Remover"
+        confirmingLabel="Removendo…"
         isDeleting={mutationBusy}
         onOpenChange={(open) => { if (!open) setRemoveOutput(null) }}
         onConfirm={() => { void confirmRemove() }}
