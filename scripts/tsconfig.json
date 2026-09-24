@@ -9,7 +9,7 @@
   "compilerOptions": {
     // Node resolves these specifiers for real, unlike the packages' bundled "bundler" mode, so
     // imports name the file on disk (`./deployment-config.ts`) and need the extension allowed. The
-    // type-only imports from `../cloudflare-os/scripts/` rely on this too.
+    // type-only imports from `../lume-os/scripts/` rely on this too.
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "allowImportingTsExtensions": true,

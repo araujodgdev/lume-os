@@ -14,12 +14,12 @@ const validConfig: DeploymentConfig = {
   accountId: "0123456789abcdef0123456789abcdef",
   publicBaseUrl: null,
   workers: {
-    router: { name: "acme-cloudflare-os", route: { customDomain: "os.example.com" } },
-    workshop: { name: "acme-cloudflare-os-backend" },
-    context: { name: "acme-cloudflare-os-context" },
-    scheduler: { name: "acme-cloudflare-os-scheduler" },
-    customGatekeeper: { name: "acme-cloudflare-os-custom" },
-    errorReporter: { name: "acme-cloudflare-os-errors" },
+    router: { name: "acme-lume-os", route: { customDomain: "os.example.com" } },
+    workshop: { name: "acme-lume-os-backend" },
+    context: { name: "acme-lume-os-context" },
+    scheduler: { name: "acme-lume-os-scheduler" },
+    customGatekeeper: { name: "acme-lume-os-custom" },
+    errorReporter: { name: "acme-lume-os-errors" },
   },
   access: {
     issuer: "https://acme.cloudflareaccess.com",
@@ -28,7 +28,7 @@ const validConfig: DeploymentConfig = {
   },
   aiGateway: {
     enabled: true,
-    name: "cloudflare-os",
+    name: "lume-os",
     accountId: null,
     providers: ["anthropic", "cloudflare"],
   },
@@ -42,7 +42,7 @@ const validConfig: DeploymentConfig = {
   resources: {
     blueprintsKvNamespaceId: "blueprints-kv-id",
     avatarsKvNamespaceId: "avatars-kv-id",
-    blueprintContentBucket: "cloudflare-os-blueprints",
+    blueprintContentBucket: "lume-os-blueprints",
   },
   observability: {
     enabled: true,
@@ -69,10 +69,10 @@ function variant(mutate: (config: Record<string, any>) => void): DeploymentConfi
 // generated config from these files, so a copy here could drift from what actually ships.
 async function baseConfigs(): Promise<BaseConfigs> {
   return {
-    router: await baseConfig("../cloudflare-os/packages/router/wrangler.jsonc"),
-    workshop: await baseConfig("../cloudflare-os/packages/workshop-backend/wrangler.jsonc"),
-    context: await baseConfig("../cloudflare-os/packages/gatekeeper-context/wrangler.jsonc"),
-    scheduler: await baseConfig("../cloudflare-os/packages/gatekeeper-scheduler/wrangler.jsonc"),
+    router: await baseConfig("../lume-os/packages/router/wrangler.jsonc"),
+    workshop: await baseConfig("../lume-os/packages/workshop-backend/wrangler.jsonc"),
+    context: await baseConfig("../lume-os/packages/gatekeeper-context/wrangler.jsonc"),
+    scheduler: await baseConfig("../lume-os/packages/gatekeeper-scheduler/wrangler.jsonc"),
     customGatekeeper: await baseConfig("../packages/custom-gatekeeper/wrangler.jsonc"),
     errorReporter: await baseConfig("../packages/error-reporter/wrangler.jsonc"),
   };
@@ -190,39 +190,39 @@ test("generates Access-mode Workshop, Context, and custom Gatekeeper configs", a
   const generated = generateConfigs(validConfig, await baseConfigs());
   const vars = generated.workshop.vars!;
 
-  assert.equal(generated.workshop.name, "acme-cloudflare-os-backend");
+  assert.equal(generated.workshop.name, "acme-lume-os-backend");
   assert.deepEqual(vars.ADMINS, ["admin@example.com"]);
   assert.equal(vars.CF_ACCESS_ISS, validConfig.access.issuer);
   assert.equal(vars.CF_ACCESS_AUD, validConfig.access.audience);
   assert.equal(vars.PUBLIC_BASE_URL, "https://os.example.com");
-  assert.equal(vars.CF_AI_GATEWAY, "cloudflare-os");
+  assert.equal(vars.CF_AI_GATEWAY, "lume-os");
   assert.equal(vars.CF_AI_GATEWAY_PROVIDERS, "anthropic,cloudflare");
   assert.deepEqual(generated.workshop.ai, { binding: "WORKERS_AI" });
   assert.deepEqual(generated.workshop.services, [
     {
       binding: "ERROR_REPORTER",
-      service: "acme-cloudflare-os-errors",
+      service: "acme-lume-os-errors",
       entrypoint: "ErrorReporter",
       props: {
-        service: "acme-cloudflare-os-backend",
+        service: "acme-lume-os-backend",
         environment: "production",
         release: "abc123",
       },
     },
     {
       binding: "GATEKEEPER_CONTEXT",
-      service: "acme-cloudflare-os-context",
+      service: "acme-lume-os-context",
       entrypoint: "GatekeeperVendor",
       props: { sharingDomain: "https://os.example.com" },
     },
     {
       binding: "GATEKEEPER_SCHEDULER",
-      service: "acme-cloudflare-os-scheduler",
+      service: "acme-lume-os-scheduler",
       entrypoint: "GatekeeperVendor",
     },
     {
       binding: "GATEKEEPER_CUSTOM",
-      service: "acme-cloudflare-os-custom",
+      service: "acme-lume-os-custom",
       entrypoint: "GatekeeperVendor",
     },
   ]);
@@ -230,19 +230,19 @@ test("generates Access-mode Workshop, Context, and custom Gatekeeper configs", a
     { binding: "BLUEPRINTS", id: "blueprints-kv-id" },
     { binding: "AVATARS", id: "avatars-kv-id" },
   ]);
-  assert.equal(generated.workshop.r2_buckets![0].bucket_name, "cloudflare-os-blueprints");
-  assert.equal(generated.context.name, "acme-cloudflare-os-context");
+  assert.equal(generated.workshop.r2_buckets![0].bucket_name, "lume-os-blueprints");
+  assert.equal(generated.context.name, "acme-lume-os-context");
   assert.equal(generated.context.kv_namespaces![0].id, "context-kv-id");
   assert.deepEqual(generated.context.artifacts, [{
     binding: "ARTIFACTS",
     namespace: "acme-context-collections",
   }]);
-  assert.equal(generated.customGatekeeper.name, "acme-cloudflare-os-custom");
+  assert.equal(generated.customGatekeeper.name, "acme-lume-os-custom");
   assert.deepEqual(generated.customGatekeeper.vars, {
     CUSTOM_NAME: "Acme",
     CUSTOM_MESSAGE: "Use the company handbook.",
   });
-  assert.equal(generated.errorReporter!.name, "acme-cloudflare-os-errors");
+  assert.equal(generated.errorReporter!.name, "acme-lume-os-errors");
   assert.deepEqual(generated.workshop.observability!.logs, {
     invocation_logs: false,
   });
@@ -258,16 +258,16 @@ test("gives the router the public route, the frontend, and every service binding
   const bases = await baseConfigs();
   const generated = generateConfigs(validConfig, bases);
 
-  assert.equal(generated.router.name, "acme-cloudflare-os");
+  assert.equal(generated.router.name, "acme-lume-os");
   assert.equal(generated.router.workers_dev, false);
   assert.deepEqual(generated.router.routes, [{ pattern: "os.example.com", custom_domain: true }]);
   // No entrypoint on any of the three: the router forwards whole HTTP requests rather than making
   // vendor RPC calls, and the binding name is what selects the /gatekeeper/<name> path.
   assert.deepEqual(generated.router.services, [
-    { binding: "WORKSHOP_BACKEND", service: "acme-cloudflare-os-backend" },
-    { binding: "GATEKEEPER_CONTEXT", service: "acme-cloudflare-os-context" },
-    { binding: "GATEKEEPER_SCHEDULER", service: "acme-cloudflare-os-scheduler" },
-    { binding: "GATEKEEPER_CUSTOM", service: "acme-cloudflare-os-custom" },
+    { binding: "WORKSHOP_BACKEND", service: "acme-lume-os-backend" },
+    { binding: "GATEKEEPER_CONTEXT", service: "acme-lume-os-context" },
+    { binding: "GATEKEEPER_SCHEDULER", service: "acme-lume-os-scheduler" },
+    { binding: "GATEKEEPER_CUSTOM", service: "acme-lume-os-custom" },
   ]);
   // Inherited untouched: the base config already carries the ASSETS binding, the SPA fallback, and
   // the /gatekeeper/* prefix an OAuth Gatekeeper redirect needs.
@@ -280,7 +280,7 @@ test("gives the router the public route, the frontend, and every service binding
 
 /**
  * The hosted deploy preinstalls this one on every fresh instance (`PREINSTALL` in
- * cloudflare-os/scripts/release/manifest-lib.ts), so a starter that skipped it would not be the same
+ * lume-os/scripts/release/manifest-lib.ts), so a starter that skipped it would not be the same
  * topology: a migrated instance would show none of its existing schedules, and the
  * Durable Objects holding them would be orphaned behind a Worker nothing is bound to.
  */
@@ -288,19 +288,19 @@ test("deploys the ambient Scheduler Gatekeeper the hosted flow preinstalls", asy
   const bases = await baseConfigs();
   const generated = generateConfigs(validConfig, bases);
 
-  assert.equal(generated.scheduler.name, "acme-cloudflare-os-scheduler");
+  assert.equal(generated.scheduler.name, "acme-lume-os-scheduler");
   // Reached by both, for the two different things a Gatekeeper does: vendor RPC from the backend,
   // and whole HTTP requests under /gatekeeper/scheduler from the router.
   assert.deepEqual(
     generated.workshop.services!.find((service) => service.binding === "GATEKEEPER_SCHEDULER"),
     {
       binding: "GATEKEEPER_SCHEDULER",
-      service: "acme-cloudflare-os-scheduler",
+      service: "acme-lume-os-scheduler",
       entrypoint: "GatekeeperVendor",
     });
   assert.deepEqual(
     generated.router.services!.find((service) => service.binding === "GATEKEEPER_SCHEDULER"),
-    { binding: "GATEKEEPER_SCHEDULER", service: "acme-cloudflare-os-scheduler" });
+    { binding: "GATEKEEPER_SCHEDULER", service: "acme-lume-os-scheduler" });
 
   // Its Durable Object history has to arrive verbatim: those classes are where the schedules live.
   assert.deepEqual(generated.scheduler.migrations, bases.scheduler.migrations);
@@ -336,7 +336,7 @@ test("keeps every Worker behind the router off the public internet", async () =>
 test("scopes PUBLIC_BASE_URL and Context sharing to the public origin", async () => {
   const onWorkersDev = variant((c) => {
     c.workers.router.route = { workersDev: true };
-    c.publicBaseUrl = "https://acme-cloudflare-os.acme.workers.dev";
+    c.publicBaseUrl = "https://acme-lume-os.acme.workers.dev";
   });
 
   const derived = generateConfigs(validConfig, await baseConfigs());
@@ -344,13 +344,13 @@ test("scopes PUBLIC_BASE_URL and Context sharing to the public origin", async ()
 
   assert.equal(derived.workshop.vars!.PUBLIC_BASE_URL, "https://os.example.com");
   assert.equal(
-    explicit.workshop.vars!.PUBLIC_BASE_URL, "https://acme-cloudflare-os.acme.workers.dev");
+    explicit.workshop.vars!.PUBLIC_BASE_URL, "https://acme-lume-os.acme.workers.dev");
   assert.equal(explicit.router.workers_dev, true);
   assert.equal(explicit.router.routes, undefined);
 
   // sharingDomain: null follows the public origin, which is what the hosted deploy sets it to.
   assert.equal(sharingDomain(derived), "https://os.example.com");
-  assert.equal(sharingDomain(explicit), "https://acme-cloudflare-os.acme.workers.dev");
+  assert.equal(sharingDomain(explicit), "https://acme-lume-os.acme.workers.dev");
 
   // A pinned literal keeps the boundary stable across a hostname change, so it wins.
   const pinned = generateConfigs(
@@ -395,7 +395,7 @@ test("rejects a workersDev origin that is not the router's own", async () => {
   // the Context isolation boundary.
   assert.throws(
     () => validateConfig(onWorkersDev("https://acme-cloudflare-o.acme.workers.dev")),
-    /names Worker "acme-cloudflare-o", but the router is "acme-cloudflare-os"/);
+    /names Worker "acme-cloudflare-o", but the router is "acme-lume-os"/);
 
   assert.throws(
     () => validateConfig(onWorkersDev("https://os.example.com")),
@@ -403,14 +403,14 @@ test("rejects a workersDev origin that is not the router's own", async () => {
 
   // A deeper name is a preview URL or an unrelated host, not the route wrangler serves.
   assert.throws(
-    () => validateConfig(onWorkersDev("https://staging.acme-cloudflare-os.acme.workers.dev")),
+    () => validateConfig(onWorkersDev("https://staging.acme-lume-os.acme.workers.dev")),
     /not a workers.dev origin/i);
 
   // The shape wrangler actually serves stays valid, whatever the account subdomain is.
   const generated = generateConfigs(
-    onWorkersDev("https://acme-cloudflare-os.some-account.workers.dev"), await baseConfigs());
+    onWorkersDev("https://acme-lume-os.some-account.workers.dev"), await baseConfigs());
   assert.equal(
-    generated.workshop.vars!.PUBLIC_BASE_URL, "https://acme-cloudflare-os.some-account.workers.dev");
+    generated.workshop.vars!.PUBLIC_BASE_URL, "https://acme-lume-os.some-account.workers.dev");
 
   // The rule is scoped to the workersDev route. A custom domain has its own hostname, unrelated to
   // any Worker name, and is checked against `customDomain` instead -- both spellings stay valid.

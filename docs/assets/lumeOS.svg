@@ -1,0 +1,5 @@
+<svg width="520" height="128" viewBox="0 0 520 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lume OS">
+<style>text{fill:#000}@media(prefers-color-scheme:dark){text{fill:#fff}}</style>
+<path d="M64 14 107.3 39v50L64 114 20.7 89V39L64 14Z" stroke="#ff4801" stroke-width="14" stroke-linejoin="round"/>
+<text x="140" y="96" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="88" font-weight="600" letter-spacing="-2">Lume OS</text>
+</svg>

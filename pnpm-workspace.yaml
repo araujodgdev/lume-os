@@ -1,9 +1,9 @@
 packages:
-  - cloudflare-os/packages/workshop-shared
-  - cloudflare-os/packages/error-reporting
+  - lume-os/packages/workshop-shared
+  - lume-os/packages/error-reporting
   - packages/*
 
-# Mirror of cloudflare-os/pnpm-workspace.yaml's catalog. Required, not merely tidy: the two
+# Mirror of lume-os/pnpm-workspace.yaml's catalog. Required, not merely tidy: the two
 # submodule packages above are members of THIS workspace, and both declare `catalog:` specifiers
 # that resolve here rather than in the submodule -- without these entries `pnpm install` fails
 # outright.
@@ -13,7 +13,7 @@ packages:
 # tree two copies, and a stub minted by one is unserialisable by the other's session
 # (`TypeError: Cannot serialize value: [object RpcStub]`). A deduped dev machine hides it; the
 # split installs in CI and on a fresh checkout do not. See
-# cloudflare-os/docs/integration-testing.md.
+# lume-os/docs/integration-testing.md.
 catalog:
   '@cloudflare/vitest-pool-workers': ^0.20.2
   capnweb: ^0.11.1

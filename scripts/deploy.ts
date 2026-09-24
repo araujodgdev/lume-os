@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, relative, resolve } from "node:path";
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
-import { pnpmCommand } from "../cloudflare-os/scripts/pnpm-command.ts";
-import { resolveBinEntry } from "../cloudflare-os/scripts/bin-entry.ts";
+import { pnpmCommand } from "../lume-os/scripts/pnpm-command.ts";
+import { resolveBinEntry } from "../lume-os/scripts/bin-entry.ts";
 import { AI_GATEWAY_PROVIDERS } from "./deployment-config.ts";
 import type {
   BaseConfigs,
@@ -20,10 +20,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // One deployment per checkout; use separate worktrees for concurrent deploys.
 const generatedName = "wrangler.prod.jsonc";
 const packageDirs = {
-  router: "cloudflare-os/packages/router",
-  workshop: "cloudflare-os/packages/workshop-backend",
-  context: "cloudflare-os/packages/gatekeeper-context",
-  scheduler: "cloudflare-os/packages/gatekeeper-scheduler",
+  router: "lume-os/packages/router",
+  workshop: "lume-os/packages/workshop-backend",
+  context: "lume-os/packages/gatekeeper-context",
+  scheduler: "lume-os/packages/gatekeeper-scheduler",
   customGatekeeper: "packages/custom-gatekeeper",
   errorReporter: "packages/error-reporter",
 } as const;
@@ -358,8 +358,8 @@ export function aiGatewayPlan(config: DeploymentConfig): AiGatewayPlan | null {
 
 /**
  * The deploy-time half of `AiGatewayConfig`'s constructor checks
- * (cloudflare-os/packages/workshop-backend/src/ai-gateway.ts), mirroring `resolveAiGateway()` in
- * cloudflare-os/scripts/preview/staging-config.ts. A configuration the backend would reject belongs
+ * (lume-os/packages/workshop-backend/src/ai-gateway.ts), mirroring `resolveAiGateway()` in
+ * lume-os/scripts/preview/staging-config.ts. A configuration the backend would reject belongs
  * in a failed `pnpm check`, not in somebody's first chat.
  */
 function validateAiGateway(config: DeploymentConfig): void {
@@ -567,7 +567,7 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
 
 /** `vp run --no-cache <task>` for a package in the submodule's workspace. */
 function submoduleBuild(pkg: string, task = "build"): string[] {
-  return ["--dir", "cloudflare-os", "exec", "vp", "run", "-F", pkg, "--no-cache", task];
+  return ["--dir", "lume-os", "exec", "vp", "run", "-F", pkg, "--no-cache", task];
 }
 
 /** `vp run --no-cache <task>` for a package in this repository's own workspace. */
@@ -584,7 +584,7 @@ function ownBuild(pkg: string, task = "build"): string[] {
  *
  * `--no-cache` on every one. A cache hit is only as good as its fingerprint, which is cheap to get
  * wrong on a build you can re-run and expensive on a deploy you cannot; it is upstream's rule for
- * the same reason (cloudflare-os/scripts/deploy-scripts.test.ts). It also restores the full ambient
+ * the same reason (lume-os/scripts/deploy-scripts.test.ts). It also restores the full ambient
  * environment, which is the belt to `workshop-frontend`'s `env: ['VITE_*']` braces: under a *cached*
  * `vp` run only declared patterns survive, and an undeclared variable is dropped from the command
  * and from the fingerprint both.
@@ -679,8 +679,8 @@ function deployWorker(dir: string, extraArgs: string[]): void {
 }
 
 function requireUpstream(): void {
-  if (!existsSync(join(root, "cloudflare-os/package.json"))) {
-    throw new Error("cloudflare-os/package.json is missing. The vendored Cloudflare OS source is incomplete.");
+  if (!existsSync(join(root, "lume-os/package.json"))) {
+    throw new Error("lume-os/package.json is missing. The vendored Lume OS source is incomplete.");
   }
 }
 

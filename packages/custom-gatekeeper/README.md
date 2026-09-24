@@ -1,6 +1,6 @@
 # Custom Gatekeeper
 
-This is a credential-free, read-only example for deployment-owned Cloudflare OS integrations. It exposes deployment information through a typed singleton and records every read as an observation.
+This is a credential-free, read-only example for deployment-owned Lume OS integrations. It exposes deployment information through a typed singleton and records every read as an observation.
 
 ## Adapt it
 

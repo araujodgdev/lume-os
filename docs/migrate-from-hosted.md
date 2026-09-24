@@ -14,7 +14,7 @@ so migrating is a version upgrade as well as a move. That means the usual upgrad
 upstream changes can be breaking, and a newer release can carry Durable Object migrations that run
 against your existing data the first time you deploy. If you want the full gate before touching
 production — compatibility review, migration plan, rollback matrix — it is in
-[Upgrade and rollback](../.agents/skills/cloudflare-os-operator/references/upgrade-and-rollback.md).
+[Upgrade and rollback](../.agents/skills/lume-os-operator/references/upgrade-and-rollback.md).
 Do not deploy a pin *older* than what the instance runs; downgrade the code and the storage stays
 migrated.
 
@@ -170,7 +170,7 @@ Point it at the gateway the hosted flow already created for you, `N-ai`:
 
 ## 6. Cloudflare Access
 
-The hosted flow created a self-hosted Access application named `Cloudflare OS <instance> <fp8>`,
+The hosted flow created a self-hosted Access application named `Lume OS <instance> <fp8>`,
 using the one-time-PIN identity provider. Reuse it rather than making a new one, so existing users
 keep signing in the same way:
 

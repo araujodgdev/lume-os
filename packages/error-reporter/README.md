@@ -1,6 +1,6 @@
 # Error Reporter
 
-This private Worker implements Cloudflare OS's vendor-neutral `ErrorReporter` RPC contract. The bundled implementation writes each bounded issue event as one structured `console.error()` object, which [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) indexes without an external SDK.
+This private Worker implements Lume OS's vendor-neutral `ErrorReporter` RPC contract. The bundled implementation writes each bounded issue event as one structured `console.error()` object, which [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) indexes without an external SDK.
 
 That console call is a demonstration of the collection path, not the intended end state. It gives every deployment a working, queryable destination before anyone picks a collector. Replace it once you know where exception events should live.
 
@@ -9,7 +9,7 @@ The Workshop binding supplies trusted `service`, `environment`, and optional `re
 ```json
 {
   "event": "error_report",
-  "service": "cloudflare-os-workshop",
+  "service": "lume-os-workshop",
   "environment": "production",
   "release": "abc123",
   "schemaVersion": 1,

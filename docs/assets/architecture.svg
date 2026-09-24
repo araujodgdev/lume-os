@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" role="img" aria-labelledby="title desc">
-  <title id="title">Cloudflare OS deployment architecture</title>
-  <desc id="desc">Users reach the deployment through one public route, owned by the Router Worker. The Router serves the Workshop frontend, sends /api to the Workshop backend, and sends /gatekeeper/&lt;name&gt; to whichever Gatekeeper the binding name matches. Behind it is the pinned Cloudflare OS release, containing the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers including Context. Service bindings connect that to the Workers and resources this repository owns and deploys: AI Gateway, enabled by default and needing no API token, any number of custom Gatekeepers, the Error Reporter, and KV and R2 storage.</desc>
+  <title id="title">Lume OS deployment architecture</title>
+  <desc id="desc">Users reach the deployment through one public route, owned by the Router Worker. The Router serves the Workshop frontend, sends /api to the Workshop backend, and sends /gatekeeper/&lt;name&gt; to whichever Gatekeeper the binding name matches. Behind it is the pinned Lume OS release, containing the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers including Context. Service bindings connect that to the Workers and resources this repository owns and deploys: AI Gateway, enabled by default and needing no API token, any number of custom Gatekeepers, the Error Reporter, and KV and R2 storage.</desc>
   <style>
     .bg{fill:#f6f8fa}
     .group{fill:#fff;fill-opacity:.5;stroke:#d0d7de;stroke-dasharray:6 4}
@@ -63,7 +63,7 @@
   <path class="line accent" d="M238 255h42" marker-end="url(#ao)"/>
 
   <rect class="group" x="288" y="48" width="288" height="414" rx="12"/>
-  <text class="g" x="308" y="78">Cloudflare OS</text>
+  <text class="g" x="308" y="78">Lume OS</text>
   <text class="s" x="308" y="96">Pinned upstream release</text>
 
   <rect class="core" x="308" y="112" width="248" height="64" rx="8"/>

@@ -14,12 +14,12 @@ describe("formatErrorLog", () => {
     };
 
     expect(formatErrorLog({
-      service: "cloudflare-os",
+      service: "lume-os",
       environment: "production",
       release: "abc123",
     }, event)).toEqual({
       event: "error_report",
-      service: "cloudflare-os",
+      service: "lume-os",
       environment: "production",
       release: "abc123",
       ...event,
@@ -41,12 +41,12 @@ describe("formatErrorLog", () => {
     };
 
     expect(formatErrorLog({
-      service: "cloudflare-os",
+      service: "lume-os",
       environment: "production",
       release: "abc123",
     }, event)).toMatchObject({
       event: "error_report",
-      service: "cloudflare-os",
+      service: "lume-os",
       environment: "production",
       release: "abc123",
     });

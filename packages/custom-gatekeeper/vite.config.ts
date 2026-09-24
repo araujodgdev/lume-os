@@ -15,7 +15,7 @@ const ownDist = { pattern: '!dist/**', base: 'package' } as const
 // Written and read back by every vitest run, so without these almost nothing caches. Workspace-wide
 // because tracking reaches past the package that owns the task -- a sibling's scratch files would
 // otherwise sit in this package's fingerprint. See
-// cloudflare-os/scripts/vitest-task-vite-config.ts for the full accounting of each path.
+// lume-os/scripts/vitest-task-vite-config.ts for the full accounting of each path.
 const vitestScratch = [
   { pattern: '!**/node_modules/.vite/**', base: 'workspace' },
   { pattern: '!**/node_modules/.vite-temp/**', base: 'workspace' },
