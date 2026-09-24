@@ -74,7 +74,11 @@ const resourcePaths = [
   "resources.blueprintsKvNamespaceId",
   "resources.avatarsKvNamespaceId",
   "resources.blueprintContentBucket",
+  "resources.cofreBucket",
 ];
+
+/** Default model for Cofre OCR; deployment.jsonc's casos.ocrModel overrides it. */
+export const DEFAULT_OCR_MODEL = "claude-opus-5";
 
 /** Whether the deployment uses upstream's built-in password accounts instead of Access. */
 export function isPasswordMode(config: DeploymentConfig): boolean {
@@ -257,6 +261,11 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
       "deployment's public origin, which is what the hosted deploy does.");
   }
 
+  const ocrModel = config.casos?.ocrModel;
+  if (ocrModel !== undefined && (typeof ocrModel !== "string" || !/^claude-[a-z0-9.-]+$/.test(ocrModel))) {
+    throw new Error('casos.ocrModel must be a Claude model id, e.g. "claude-opus-5".');
+  }
+
   const mode = config.access.mode;
   if (mode !== undefined && mode !== "cloudflare-access" && mode !== "password") {
     throw new Error('access.mode must be "cloudflare-access" or "password".');
@@ -359,6 +368,16 @@ export interface AiGatewayPlan {
  * read that as cross-account and demand a token for a gateway the binding can reach in-account.
  * Lowercase is also the form the dashboard and the API expect, so it is what the vars carry.
  */
+/**
+ * Whether the Cofre can OCR scanned documents: Claude has to be reachable through the deployment's
+ * own gateway over the Workers AI binding, which means an enabled, same-account gateway that lists
+ * the anthropic provider.
+ */
+export function cofreOcrEnabled(config: DeploymentConfig): boolean {
+  const gateway = aiGatewayPlan(config);
+  return Boolean(gateway && !gateway.crossAccount && config.aiGateway.providers?.includes("anthropic"));
+}
+
 export function aiGatewayPlan(config: DeploymentConfig): AiGatewayPlan | null {
   if (!config.aiGateway.enabled) return null;
   const deploymentAccountId = config.accountId.toLowerCase();
@@ -576,8 +595,19 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   // here without adding a configuration surface for it.
   setCommon(scheduler, config, config.workers.scheduler.name);
 
-  // Casos stores everything in its own Durable Objects, so it needs nothing beyond the common block.
   setCommon(casos, config, config.workers.casos.name);
+  casos.r2_buckets = [
+    { binding: "COFRE", ...(config.resources.cofreBucket
+      ? { bucket_name: config.resources.cofreBucket } : {}) },
+  ];
+  // Text-layer conversion runs on this binding, and so does OCR: Claude is reached through the
+  // gateway over it, which only works in-account and only once the gateway holds an Anthropic key.
+  casos.ai = { binding: "WORKERS_AI" };
+  casos.vars = {
+    CASOS_OCR: String(cofreOcrEnabled(config)),
+    CASOS_OCR_MODEL: config.casos?.ocrModel ?? DEFAULT_OCR_MODEL,
+    ...(config.aiGateway.enabled ? { CF_AI_GATEWAY: config.aiGateway.name } : {}),
+  };
 
   if (errorReporter) {
     setCommon(errorReporter, config, config.workers.errorReporter!.name);

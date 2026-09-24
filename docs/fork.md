@@ -39,6 +39,8 @@ Branding and pt-BR copy apply across the app; see the commits that rename Cloudf
 | Home suggestions | `components/AppShell/HomeTaskSuggestions.tsx` | Legal tasks: petição inicial, parecer, contract review, deadlines spreadsheet, client presentation |
 | "gadget" in user-facing copy | Sign-in, chat, sharing, export, connector and admin strings | Now "arquivo" or "agente" |
 
+| Downloads from gatekeeper apps | `SandboxedGatekeeperApp.tsx` | `allow-downloads` added to the iframe sandbox, so the Casos page can save vault documents. The frame still has no network access and no same-origin rights |
+
 `/blueprint/$id` stays reachable on purpose. `createFromFormat` sends a format that needs setup to that page.
 
 ## Agent instructions (runtime, no deploy)

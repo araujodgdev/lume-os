@@ -33,7 +33,8 @@ The custom logo appears in the app chrome, sign-in screens, and browser tab on e
 | `aiGateway` | Deployment-managed model catalog | Enabled by default over the Workers AI binding; which providers to advertise, and which gateway |
 | `context` | Context sharing boundary, snapshot KV, and optional Artifacts repositories | `null` to scope data to the public origin, or a pinned stable label; automatic or existing KV; Git-backed collections disabled or enabled |
 | `errorReporting` | Private explicit-issue destination | Console Reporter enabled state, environment, and release metadata |
-| `resources` | Blueprint/avatar KV and blueprint-content R2 | `null` to provision or explicit IDs/names to reuse |
+| `resources` | Blueprint/avatar KV, blueprint-content R2, and the Cofre's R2 | `null` to provision or explicit IDs/names to reuse |
+| `casos` | Casos Gatekeeper settings | `ocrModel`, the Claude model that transcribes scanned documents |
 | `observability` | Worker telemetry | Structured logs, invocation logs, traces, and sampling; see the [observability guide](observability.md) |
 
 Secrets are never valid values in this file. Install them interactively with Wrangler against the Worker that consumes them.
@@ -114,7 +115,8 @@ Wrangler supports [automatic provisioning](https://developers.cloudflare.com/wor
 "resources": {
   "blueprintsKvNamespaceId": null,
   "avatarsKvNamespaceId": null,
-  "blueprintContentBucket": null
+  "blueprintContentBucket": null,
+  "cofreBucket": null
 }
 ```
 
@@ -146,6 +148,9 @@ To isolate repositories under another stable namespace, add the optional propert
 Artifacts creates the namespace implicitly when the first repository is created. Keep the selected namespace stable: existing Git-backed collections refer to repositories in it. Disabling the binding later stops repository refresh and token management but does not delete repositories; the last synchronized Context content remains readable. Write tokens grant repository mutation authority, so protect them like other credentials and revoke them when no longer needed.
 
 ### AI models
+
+> [!NOTE]
+> The Cofre's OCR of scanned documents runs on Claude through this same gateway, from the Casos Worker. It turns on when `providers` lists `"anthropic"`, the gateway is in the deployment's own account, and an Anthropic key is stored on the gateway (dashboard → AI Gateway → your gateway → Provider keys). `casos.ocrModel` picks the model. See the [Casos README](../lume-os/packages/gatekeeper-casos/README.md#cofre-documents-per-case).
 
 Every provider, Workers AI included, is reached through [AI Gateway](https://developers.cloudflare.com/ai-gateway/). The transport is the Workshop's `WORKERS_AI` binding, which is pre-authenticated inside your own account — so the default configuration needs **no API token at all**:
 
