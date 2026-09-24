@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/assets/cloudflareOS.svg" alt="Cloudflare OS" width="480">
+  <img src="docs/assets/lumeOS.svg" alt="Lume OS" width="320">
 </p>
 
 <h1 align="center">Customized for your Company</h1>
 
 <p align="center">
-  Deploy a pinned Cloudflare OS release with branding, sign-in, integrations, routes, and upgrades under your control.
+  Deploy a pinned Lume OS release with branding, sign-in, integrations, routes, and upgrades under your control.
 </p>
 
 <p align="center">
@@ -13,11 +13,11 @@
   <a href="https://nodejs.org/"><img alt="Node.js 24.19+" src="https://img.shields.io/badge/Node.js-24.19+-5FA04E?logo=nodedotjs&logoColor=white"></a>
   <a href="https://pnpm.io/"><img alt="pnpm 11.17" src="https://img.shields.io/badge/pnpm-11.17-F69220?logo=pnpm&logoColor=white"></a>
   <a href="https://www.typescriptlang.org/"><img alt="TypeScript 7" src="https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white"></a>
-  <a href="https://github.com/cloudflare/cloudflare-os"><img alt="Cloudflare OS upstream" src="https://img.shields.io/badge/upstream-Cloudflare_OS-24292F?logo=github"></a>
+  <a href="https://github.com/cloudflare/cloudflare-os"><img alt="Upstream source" src="https://img.shields.io/badge/upstream-source-24292F?logo=github"></a>
 </p>
 
 > [!IMPORTANT]
-> Cloudflare OS is early-access software. Pin upstream releases, review changes, and verify the trust boundary before every production upgrade.
+> Lume OS is early-access software. Pin upstream releases, review changes, and verify the trust boundary before every production upgrade.
 
 ## Four steps
 
@@ -30,7 +30,7 @@
 
 ## Overview
 
-This repository adds deployment controls around a pinned [Cloudflare OS](https://github.com/cloudflare/cloudflare-os) release without modifying the upstream source.
+This repository adds deployment controls around Lume OS, a pinned copy of its [open-source upstream](https://github.com/cloudflare/cloudflare-os) vendored in `lume-os/` without modification.
 
 | Control | What you own |
 | --- | --- |
@@ -44,7 +44,7 @@ This repository adds deployment controls around a pinned [Cloudflare OS](https:/
 
 ### Architecture
 
-<img src="docs/assets/architecture.svg" alt="Cloudflare OS deployment architecture: users reach one public route, owned by the router Worker, which serves the frontend and proxies /api to the Workshop backend and /gatekeeper/&lt;name&gt; to the matching Gatekeeper. Behind it is the pinned Cloudflare OS release, holding the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers. Service bindings connect it to the Workers and resources this repository owns: AI Gateway with no API token, custom Gatekeepers, the Error Reporter, and KV and R2 storage.">
+<img src="docs/assets/architecture.svg" alt="Lume OS deployment architecture: users reach one public route, owned by the router Worker, which serves the frontend and proxies /api to the Workshop backend and /gatekeeper/&lt;name&gt; to the matching Gatekeeper. Behind it is the pinned Lume OS release, holding the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers. Service bindings connect it to the Workers and resources this repository owns: AI Gateway with no API token, custom Gatekeepers, the Error Reporter, and KV and R2 storage.">
 
 The deployment is six Workers. A **router** owns the public route and serves the frontend, proxying `/api` to the Workshop backend and `/gatekeeper/<name>` to whichever Gatekeeper the binding name matches; the Workshop, the Context, Scheduler and custom Gatekeepers, and the Error Reporter sit behind it with no route of their own, reachable only over service bindings.
 
@@ -66,7 +66,7 @@ Install [Node.js 24.19 or newer](https://nodejs.org/) (the deploy scripts are Ty
 
 ```sh
 pnpm install
-pnpm --dir cloudflare-os install
+pnpm --dir lume-os install
 pnpm exec wrangler login
 ```
 
@@ -74,7 +74,7 @@ Your account needs [Workers](https://developers.cloudflare.com/workers/), [KV](h
 
 ### 2. Configure sign-in
 
-Cloudflare OS supports several sign-in methods. This starter deploys [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) mode, which verifies identity before a request reaches the Worker. See [Sign-in methods](docs/customization.md#sign-in-methods) for the alternatives and what switching involves.
+Lume OS supports several sign-in methods. This starter deploys [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) mode, which verifies identity before a request reaches the Worker. See [Sign-in methods](docs/customization.md#sign-in-methods) for the alternatives and what switching involves.
 
 1. Choose a public hostname in an [active Cloudflare zone](https://developers.cloudflare.com/dns/zone-setups/), such as `os.example.com`.
 2. Create a [self-hosted Access application](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) for that hostname.
@@ -125,8 +125,8 @@ The complete control reference and recipes live in [Customization](docs/customiz
 - Stream production events with [`wrangler tail`](https://developers.cloudflare.com/workers/observability/logs/real-time-logs/).
 - Triage explicit failures and choose export destinations with the [observability guide](docs/observability.md).
 - Roll a Worker back from its dashboard deployment history or with [`wrangler rollback`](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/).
-- Follow the [upgrade checklist](docs/customization.md#upgrade) before changing the vendored `cloudflare-os` source.
-- Review the upstream Cloudflare OS documentation and release history before adopting behavior changes.
+- Follow the [upgrade checklist](docs/customization.md#upgrade) before changing the vendored `lume-os` source.
+- Review the upstream Lume OS documentation and release history before adopting behavior changes.
 
 ### Moving here from the hosted deploy (os.cloudflare.app/deploy)
 

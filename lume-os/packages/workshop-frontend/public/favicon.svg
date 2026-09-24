@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lume OS">
+  <rect width="64" height="64" rx="15" fill="#1b1b1a"/>
+  <g transform="translate(8 8) scale(2)" fill="#fff">
+    <path d="M5 4h3v10.5l-3 3V4Z"/>
+    <path d="m6.5 19 3-3H20v3H6.5Z"/>
+    <path d="m11 11.5 6.5-6.5L19 6.5 12.5 13 11 11.5Z"/>
+  </g>
+</svg>

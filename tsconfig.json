@@ -22,5 +22,5 @@
     "noEmit": true
   },
   "include": [],
-  "exclude": ["node_modules", "dist", "cloudflare-os"]
+  "exclude": ["node_modules", "dist", "lume-os"]
 }

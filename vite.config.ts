@@ -64,7 +64,7 @@ export default defineConfig({
       // The submodule lints itself, with its own config, its own plugins (including the local
       // `gadgets/prefer-jsdoc` rule this file does not load) and its own per-directory overrides.
       // Linting it from here would report findings nobody in this repository can fix.
-      'cloudflare-os/**',
+      'lume-os/**',
       '**/dist/**',
       '**/generated/**',
       '**/*.gen.ts',

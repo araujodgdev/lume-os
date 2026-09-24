@@ -11,7 +11,7 @@ import type {
   BindingDecl,
   ObservabilityConfig,
   WranglerConfig,
-} from "../cloudflare-os/scripts/release/manifest-lib.ts";
+} from "../lume-os/scripts/release/manifest-lib.ts";
 
 /** A model provider the Workshop can serve through AI Gateway with deployment-managed keys. */
 export type AiGatewayProvider = "anthropic" | "openai" | "google" | "cloudflare";
@@ -47,7 +47,7 @@ export interface AccessConfig {
  * Transport is derived rather than configured: the Workshop reaches the gateway over its
  * `WORKERS_AI` binding, which is pre-authenticated inside the Worker's own account. Only a gateway
  * in a *different* account, or the `google` provider, needs `CF_AI_GATEWAY_API_TOKEN` -- see
- * `AiGatewayConfig` in cloudflare-os/packages/workshop-backend/src/ai-gateway.ts, whose constructor
+ * `AiGatewayConfig` in lume-os/packages/workshop-backend/src/ai-gateway.ts, whose constructor
  * throws this script mirrors.
  */
 export interface AiGatewayConfigInput {

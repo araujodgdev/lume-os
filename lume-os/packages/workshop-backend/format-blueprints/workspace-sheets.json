@@ -1,0 +1,13 @@
+{
+  "blueprintId": "format.spreadsheet",
+  "title": "Planilhas",
+  "description": "Para escrever, formatar e editar planilhas, direto ou em linguagem natural.",
+  "output": {
+    "id": "spreadsheet",
+    "noun": "Planilha",
+    "plural": "Planilhas",
+    "icon": "table"
+  },
+  "author": { "type": "user", "name": "Lume", "id": "agent@cloudflare.com" },
+  "revision": 8
+}

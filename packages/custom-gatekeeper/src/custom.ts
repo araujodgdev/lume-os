@@ -35,12 +35,12 @@ type ObservationQueue = Pick<ApprovalQueue, "authorizeObservation"> &
 export function describeCustomVendor(): VendorDescription {
   return {
     displayName: "Custom Gatekeeper",
-    url: "https://github.com/cloudflare/cloudflare-os-starter",
+    url: "https://github.com/araujodgdev/lume-os",
     logo: CUSTOM_ICON,
     color: "#e8f2ff",
     tagline: "Example organization-specific capability",
     description:
-      "A minimal Gatekeeper to copy when connecting CloudflareOS to your organization's systems.",
+      "A minimal Gatekeeper to copy when connecting LumeOS to your organization's systems.",
     autoProvisionsAccount: true,
     providesAuth: false,
   };

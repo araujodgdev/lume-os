@@ -58,7 +58,7 @@ importers:
         specifier: 'catalog:'
         version: 4.124.0(@cloudflare/workers-types@5.20260818.1)
 
-  cloudflare-os/packages/error-reporting:
+  lume-os/packages/error-reporting:
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -67,7 +67,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.1.0)(@vitest/browser-preview@4.1.10)(vite@7.3.6(@types/node@26.1.0)(lightningcss@1.33.0))
 
-  cloudflare-os/packages/workshop-shared:
+  lume-os/packages/workshop-shared:
     dependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260808.1
@@ -84,7 +84,7 @@ importers:
     dependencies:
       '@gadgets/workshop-shared':
         specifier: workspace:*
-        version: link:../../cloudflare-os/packages/workshop-shared
+        version: link:../../lume-os/packages/workshop-shared
       capnweb:
         specifier: 'catalog:'
         version: 0.11.1
@@ -115,7 +115,7 @@ importers:
     dependencies:
       '@gadgets/error-reporting':
         specifier: workspace:*
-        version: link:../../cloudflare-os/packages/error-reporting
+        version: link:../../lume-os/packages/error-reporting
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260808.1

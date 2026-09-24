@@ -1,4 +1,4 @@
-# Customizing Cloudflare OS
+# Customizing Lume OS
 
 This wrapper exposes controls at three depths. Start in the Admin UI, move to deployment configuration when the trust or infrastructure boundary changes, and write code only for capabilities that neither layer can express.
 
@@ -46,7 +46,7 @@ The deployment is six Workers. Keep their names unique: service bindings use the
 | Worker | Role |
 | --- | --- |
 | `router` | Owns the public route and serves the frontend. Proxies `/api` and `/blueprint-screenshot` to the Workshop, and `/gatekeeper/<name>` to the Gatekeeper whose service binding matches. |
-| `workshop` | The Cloudflare OS backend, holding all user data in Durable Objects. |
+| `workshop` | The Lume OS backend, holding all user data in Durable Objects. |
 | `context` | The Context Gatekeeper. |
 | `scheduler` | The Scheduler Gatekeeper, which gives agents scheduled and recurring work. |
 | `customGatekeeper` | This repository's example integration. |
@@ -75,12 +75,12 @@ On a custom domain the hostname is yours and has nothing to do with any Worker n
 
 ### Sign-in methods
 
-Cloudflare OS supports three ways to sign users in. This starter deploys Cloudflare Access.
+Lume OS supports three ways to sign users in. This starter deploys Cloudflare Access.
 
 | Method | How it works | In this starter |
 | --- | --- | --- |
 | Cloudflare Access | Access verifies identity before the request reaches the Worker, and the Workshop trusts the signed Access JWT. The password login and signup pages are disabled. | Deployed by default |
-| Built-in password accounts | Cloudflare OS serves its own username and password login plus signup. This is the upstream default. | Requires deploy script changes |
+| Built-in password accounts | Lume OS serves its own username and password login plus signup. This is the upstream default. | Requires deploy script changes |
 | Auth Gatekeepers | Gatekeepers that advertise `providesAuth` add "Continue with ..." buttons, alongside or instead of password login. | Requires deploy script changes |
 
 Access mode is the default here because unauthenticated requests never reach application code. `scripts/deploy.ts` implements it by setting `CF_ACCESS_ISS` and `CF_ACCESS_AUD` on the Workshop and building the frontend with `VITE_CF_ACCESS_MODE=true`.
@@ -187,7 +187,7 @@ The starter enables structured custom logs and a private console-backed Error Re
 
 ## Custom Gatekeepers
 
-Keep deployment-owned Gatekeepers under `packages/`, outside the `cloudflare-os` submodule. `scripts/deploy.ts` binds this repository's example as `GATEKEEPER_CUSTOM` and Context as `GATEKEEPER_CONTEXT`, twice each: on the Workshop with the `GatekeeperVendor` entrypoint for RPC, and on the router with no entrypoint, where the binding name is what routes `/gatekeeper/custom` and `/gatekeeper/context` to it. A Gatekeeper that serves HTTP — an OAuth redirect, for instance — needs both.
+Keep deployment-owned Gatekeepers under `packages/`, outside the `lume-os` submodule. `scripts/deploy.ts` binds this repository's example as `GATEKEEPER_CUSTOM` and Context as `GATEKEEPER_CONTEXT`, twice each: on the Workshop with the `GatekeeperVendor` entrypoint for RPC, and on the router with no entrypoint, where the binding name is what routes `/gatekeeper/custom` and `/gatekeeper/context` to it. A Gatekeeper that serves HTTP — an OAuth redirect, for instance — needs both.
 
 The minimal example flow is:
 
@@ -196,33 +196,33 @@ The minimal example flow is:
 3. `CustomGatekeeper` reads deployment values and creates the session.
 4. `CustomAccount` exposes that session as a singleton.
 5. `GatekeeperVendor` advertises credential-free auto-provisioning.
-6. The Workshop service binding makes the vendor available to Cloudflare OS.
+6. The Workshop service binding makes the vendor available to Lume OS.
 
 Read the [package guide](../packages/custom-gatekeeper/README.md) and upstream [`write-gatekeeper` skill](https://github.com/cloudflare/cloudflare-os/blob/main/.agents/skills/write-gatekeeper/SKILL.md) before adding OAuth, URL-scoped resources, writes, simulations, hooks, configurator UI, or stricter observer verification.
 
 ## Code extensions
 
-Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) over patches inside `cloudflare-os/`. Modify upstream only when a Worker boundary cannot express the behavior, and keep the change as a reviewable upstream commit or fork rather than a generated overlay.
+Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) over patches inside `lume-os/`. Modify upstream only when a Worker boundary cannot express the behavior, and keep the change as a reviewable upstream commit or fork rather than a generated overlay.
 
 ## Upgrade
 
-Cloudflare OS is vendored: `cloudflare-os/` holds a plain copy of an upstream commit, recorded in `.cloudflare-os-upstream`. There is no submodule.
+Lume OS is vendored: `lume-os/` holds a plain copy of an upstream commit, recorded in `.lume-os-upstream`. There is no submodule.
 
-1. Note the commit in `.cloudflare-os-upstream` for rollback.
-2. Replace `cloudflare-os/` with the intended upstream commit and write its SHA to `.cloudflare-os-upstream`, both in one commit:
+1. Note the commit in `.lume-os-upstream` for rollback.
+2. Replace `lume-os/` with the intended upstream commit and write its SHA to `.lume-os-upstream`, both in one commit:
 
    ```sh
    SHA=<upstream commit>
-   git rm -rq cloudflare-os && rm -rf cloudflare-os && mkdir cloudflare-os
-   curl -sSL "https://github.com/cloudflare/cloudflare-os/archive/$SHA.tar.gz" | tar xz --strip-components=1 -C cloudflare-os
-   echo "$SHA" > .cloudflare-os-upstream
-   git add cloudflare-os .cloudflare-os-upstream
+   git rm -rq lume-os && rm -rf lume-os && mkdir lume-os
+   curl -sSL "https://github.com/cloudflare/cloudflare-os/archive/$SHA.tar.gz" | tar xz --strip-components=1 -C lume-os
+   echo "$SHA" > .lume-os-upstream
+   git add lume-os .lume-os-upstream
    ```
 
 3. Review Workshop and Context Wrangler base-config changes and Gatekeeper contracts.
-4. Diff `cloudflare-os/pnpm-workspace.yaml`'s `catalog:` against this repository's and re-sync it. Two `cloudflare-os` packages are members of this workspace and resolve `catalog:` here, so a missing entry fails the install and a *stale* one silently gives the tree two copies of `capnweb` — a failure that only appears once the two installs are separate, as they are in CI.
-5. Run `pnpm install`, `pnpm --dir cloudflare-os install`, `pnpm lint`, and `pnpm check`.
+4. Diff `lume-os/pnpm-workspace.yaml`'s `catalog:` against this repository's and re-sync it. Two `lume-os` packages are members of this workspace and resolve `catalog:` here, so a missing entry fails the install and a *stale* one silently gives the tree two copies of `capnweb` — a failure that only appears once the two installs are separate, as they are in CI.
+5. Run `pnpm install`, `pnpm --dir lume-os install`, `pnpm lint`, and `pnpm check`.
 6. Deploy and verify Access, administrator access, storage, configured AI, Context, custom observations, and the Error Reporter query surface.
 7. If needed, revert that commit and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
 
-Do not update `cloudflare-os/` blindly, and never hand-edit it outside a reviewed upstream change. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.
+Do not update `lume-os/` blindly, and never hand-edit it outside a reviewed upstream change. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.

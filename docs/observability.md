@@ -36,7 +36,7 @@ The annotated [`deployment.jsonc`](../deployment.jsonc) enables the backend Repo
 
 ```jsonc
 "workers": {
-  "errorReporter": { "name": "your-cloudflare-os-errors" }
+  "errorReporter": { "name": "your-lume-os-errors" }
 },
 "errorReporting": {
   "enabled": true,

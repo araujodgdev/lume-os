@@ -1,0 +1,13 @@
+{
+  "blueprintId": "format.slides",
+  "title": "Apresentações",
+  "description": "Para montar apresentações com a identidade da sua empresa, direto ou em linguagem natural. Depois de criar seus próprios slides, adicione conexões para gerar textos e gráficos com dados reais.",
+  "output": {
+    "id": "presentation",
+    "noun": "Apresentação",
+    "plural": "Apresentações",
+    "icon": "presentation"
+  },
+  "author": { "type": "user", "name": "Lume", "id": "agent@cloudflare.com" },
+  "revision": 7
+}

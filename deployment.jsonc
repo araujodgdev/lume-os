@@ -36,7 +36,7 @@
     "errorReporter": { "name": "<ERROR_REPORTER_WORKER_NAME>" }
   },
 
-  // This starter deploys Cloudflare Access mode. Cloudflare OS also supports built-in password
+  // This starter deploys Cloudflare Access mode. Lume OS also supports built-in password
   // accounts and auth Gatekeeper sign-in; see the reference below before switching. The audience
   // comes from the self-hosted Access application protecting the public hostname.
   // "admins" gates /admin in every sign-in method.
@@ -56,7 +56,7 @@
 
     // Your account's AI Gateway. "default" is the one Cloudflare creates for the account.
     // Migrating from the hosted deploy? Use the gateway that flow created: "<instance>-ai"
-    // (e.g. "cloudflareos-ai"), named after your instance. See docs/migrate-from-hosted.md.
+    // (e.g. "lumeos-ai"), named after your instance. See docs/migrate-from-hosted.md.
     "name": "default",
 
     // null reuses the top-level accountId. Set only if the gateway lives in another account --
