@@ -1,51 +1,57 @@
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
-import { CaretLeft, CaretRight, Spinner } from '@phosphor-icons/react'
+import { ArrowRight, Spinner } from '@phosphor-icons/react'
 
-// Building blocks of the Lume OS identity. Sizes, radii and colours mirror the brand reference:
-// 36px controls with 3px corners, 15px labels, hairline #3d3d3d borders, and the lime arrow tile.
+// Building blocks of the Lume identity, after the Lume landing page: square corners, hairline
+// borders, Geist Mono uppercase labels behind a small square bullet, and terracotta as the one accent.
 
-/** Small lime square with a dark caret: the brand's call-to-action affordance. */
-export function ArrowTile() {
+/** Uppercase mono label with a square bullet ("■ MÓDULOS"). */
+export function MonoLabel({ children, accent = false, className }: { children: ReactNode; accent?: boolean; className?: string }) {
   return (
-    <span className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[2px] bg-lume-lime text-lume-ink">
-      <CaretRight size={10} weight="bold" />
+    <span className={`inline-flex items-center gap-2.5 font-mono text-[12px] uppercase leading-none tracking-[0.04em] ${className ?? ''}`}>
+      <span aria-hidden="true" className={`h-2 w-2 shrink-0 ${accent ? 'bg-lume-brand' : 'bg-current'}`} />
+      {children}
     </span>
   )
 }
 
-type Tone = 'black' | 'graphite' | 'light'
-
-const toneClass: Record<Tone, string> = {
-  black: 'bg-black text-white hover:bg-lume-graphite',
-  graphite: 'bg-lume-graphite text-white hover:bg-[#555555]',
-  light: 'bg-lume-stone text-black hover:bg-[#e8e4df]',
-}
-
-/** Rectangular action with a trailing arrow tile ("Contact Us", "View Metrics"). */
-export function ArrowButtonLabel({ children, tone = 'black' }: { children: ReactNode; tone?: Tone }) {
+/**
+ * Bordered form cell: mono label on top, input below. Cells stack with shared borders (`-mt-px`),
+ * forming one ruled block like the landing's panels.
+ */
+export const FieldCell = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }
+>(function FieldCell({ label, hint, className, id, ...props }, ref) {
+  const fieldId = id ?? `field-${label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  const hintId = hint ? `${fieldId}-hint` : undefined
   return (
-    <span
-      className={`inline-flex h-9 items-center gap-3 rounded-[3px] pl-3.5 pr-2.5 text-[15px] leading-none tracking-[-0.01em] transition-colors duration-200 ${toneClass[tone]}`}
+    <div
+      className={`group relative -mt-px border border-lume-ink bg-lume-paper px-4 pb-3 pt-3 transition-colors duration-300 first:mt-0 focus-within:z-10 focus-within:bg-white ${className ?? ''}`}
     >
-      {children}
-      <ArrowTile />
-    </span>
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={fieldId} className="font-mono text-[11px] uppercase leading-none tracking-[0.04em] text-lume-muted">
+          {label}
+        </label>
+        {hint && (
+          <span id={hintId} className="font-mono text-[11px] leading-none tracking-[0.02em] text-lume-brand-ink">
+            {hint}
+          </span>
+        )}
+      </div>
+      <input
+        ref={ref}
+        id={fieldId}
+        aria-invalid={hint ? true : undefined}
+        aria-describedby={hintId}
+        {...props}
+        className="mt-2 block w-full bg-transparent text-[17px] leading-6 tracking-[-0.01em] text-lume-ink placeholder:text-[#9a9a9a] outline-none disabled:opacity-50"
+      />
+    </div>
   )
-}
+})
 
-/** Uppercase location chip with carets on both sides ("‹ HOME ›"). */
-export function BreadcrumbChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex h-[29px] items-center gap-1 rounded-[2px] bg-lume-chip px-2 text-[11px] uppercase leading-none tracking-[0.02em] text-white">
-      <CaretLeft size={9} weight="bold" className="opacity-70" />
-      {children}
-      <CaretRight size={9} weight="bold" className="opacity-70" />
-    </span>
-  )
-}
-
-/** Full-width pill submit button (contact form "Submit"). */
-export function PillButton({
+/** Full-width solid action: ink block, mono label, arrow that nudges right on hover. */
+export function BlockButton({
   loading,
   children,
   className,
@@ -55,30 +61,24 @@ export function PillButton({
     <button
       {...props}
       disabled={props.disabled || loading}
-      className={`flex h-10 w-full items-center justify-center gap-2 rounded-full bg-white/20 px-4 text-[15px] leading-none text-white transition-colors duration-200 hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white/20 ${className ?? ''}`}
+      className={`group/btn flex h-14 w-full items-center justify-between bg-lume-ink px-4 font-mono text-[13px] uppercase tracking-[0.04em] text-lume-paper transition-colors duration-500 ease-lume hover:bg-lume-brand hover:text-lume-ink disabled:cursor-not-allowed disabled:bg-[#8a8a8a] disabled:text-lume-paper ${className ?? ''}`}
     >
-      {loading && <Spinner size={16} className="animate-spin" />}
-      {children}
+      <span>{children}</span>
+      {loading ? (
+        <Spinner size={18} className="animate-spin" />
+      ) : (
+        <ArrowRight size={18} className="transition-transform duration-500 ease-lume group-hover/btn:translate-x-1" />
+      )}
     </button>
   )
 }
 
-/** Dark text field: hairline border, 3px corners, grey placeholder, label kept for screen readers. */
-export const BrandField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label: string }>(
-  function BrandField({ label, className, id, ...props }, ref) {
-    const fieldId = id ?? `field-${label.toLowerCase().replace(/\W+/g, '-')}`
-    return (
-      <div className={className}>
-        <label htmlFor={fieldId} className="sr-only">
-          {label}
-        </label>
-        <input
-          ref={ref}
-          id={fieldId}
-          {...props}
-          className="h-9 w-full rounded-[3px] border border-lume-line bg-transparent px-3 text-[14px] leading-[19.6px] text-white placeholder:text-lume-muted outline-none transition-colors duration-200 hover:border-[#5a5a5a] focus:border-white/70 disabled:opacity-50"
-        />
-      </div>
-    )
-  },
-)
+/** Header cell with a label and a trailing arrow ("Entrar →"), as in the landing's top bar. */
+export function CtaCellLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="group/cta flex h-full w-full items-center justify-between gap-3 whitespace-nowrap bg-lume-paper px-4 sm:gap-6 sm:px-5 text-[17px] tracking-[-0.01em] text-lume-ink transition-colors duration-500 ease-lume hover:bg-lume-brand">
+      {children}
+      <ArrowRight size={16} className="transition-transform duration-500 ease-lume group-hover/cta:translate-x-1" />
+    </span>
+  )
+}

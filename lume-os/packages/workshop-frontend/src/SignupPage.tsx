@@ -2,14 +2,14 @@ import { useState, FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { RpcStub } from "capnweb";
 import { PublicApi } from "@gadgets/workshop-shared/api";
-import { Input, Button, Banner, Loader } from "@cloudflare/kumo";
 import { hashPassword } from "./passwordHash";
 import { useServerConfig, useServerConfigError, useSiteName } from "./ServerConfigContext";
 import { useDocumentTitle } from "./useDocumentTitle";
 import OAuthButtons from "./components/auth/OAuthButtons";
-import SiteLogo from "./components/SiteLogo";
 import { useConnectionLost } from "./RpcContext";
-import LumeMark from './components/brand/LumeMark'
+import AuthLayout, { AuthLead, AuthTitle } from "./components/brand/AuthLayout";
+import { AuthConfigState, AuthError, AuthNotice, OrDivider } from "./components/brand/AuthParts";
+import { BlockButton, FieldCell } from "./components/brand/BrandControls";
 
 interface SignupPageProps {
   rpcStub: RpcStub<PublicApi>;
@@ -20,7 +20,7 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
   const serverConfigError = useServerConfigError();
   const siteName = useSiteName();
   const connectionLost = useConnectionLost();
-  useDocumentTitle("Create account");
+  useDocumentTitle("Criar conta");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,17 +29,17 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
 
   const usernameError =
     username && !/^[a-z0-9_-]+$/i.test(username)
-      ? "Letters, numbers, underscores, and hyphens only"
+      ? "Só letras, números, _ e -"
       : undefined;
 
   const passwordError =
     password && password.length < 8
-      ? "Must be at least 8 characters"
+      ? "Mínimo de 8 caracteres"
       : undefined;
 
   const confirmError =
     confirmPassword && confirmPassword !== password
-      ? "Passwords do not match"
+      ? "As senhas não coincidem"
       : undefined;
 
   const canSubmit =
@@ -68,36 +68,20 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
         localStorage.setItem("authToken", token);
         window.location.href = "/";
       } else {
-        setError("Username already exists");
+        setError("Esse usuário já existe");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Account creation failed");
+      setError(err instanceof Error ? err.message : "Não foi possível criar a conta");
     } finally {
       setLoading(false);
     }
   };
 
   if (!serverConfig) {
-    if (serverConfigError && !connectionLost) {
-      return (
-        <div
-          role="alert"
-          className="min-h-screen flex flex-col items-center justify-center gap-4 bg-kumo-base px-4"
-        >
-          <p className="text-sm text-kumo-danger text-center">
-            Couldn&apos;t load deployment settings.
-          </p>
-          <Button variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
-        </div>
-      );
-    }
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-kumo-base px-4">
-        <Loader size="lg" />
-        <p className="text-sm text-kumo-subtle text-center">
-          {connectionLost ? "Can't reach the server. Retrying…" : "Loading…"}
-        </p>
-      </div>
+      <AuthLayout mode="signup">
+        <AuthConfigState failed={Boolean(serverConfigError) && !connectionLost} connectionLost={connectionLost} />
+      </AuthLayout>
     );
   }
 
@@ -107,120 +91,83 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
   const passwordAuthEnabled = serverConfig.passwordAuthEnabled && signupsEnabled;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-kumo-base px-4 relative overflow-hidden">
-      {/* Dot grid — fades from top to bottom */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, var(--color-kumo-line) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-          maskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)",
-        }}
-      />
+    <AuthLayout mode="signup">
+      <AuthTitle>
+        Abra o seu
+        <br />
+        espaço.
+      </AuthTitle>
+      <AuthLead>
+        Crie sua conta no {siteName} e comece a trabalhar com agentes que conhecem o seu contexto.
+      </AuthLead>
 
-      <div className="w-full max-w-sm relative">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <SiteLogo size={40} className="mb-3">
-            <div className="w-10 h-10 rounded-[3px] flex items-center justify-center bg-lume-ink mb-3">
-              <LumeMark size={22} className="text-white" />
-            </div>
-          </SiteLogo>
-          <h1 className="text-xl font-semibold text-kumo-default">
-            {siteName}
-          </h1>
-          <p className="text-sm text-kumo-subtle mt-1">Create your account</p>
-        </div>
-
+      <div className="mt-auto w-full max-w-[560px] pt-12">
         {!signupsEnabled && (
-          <Banner
-            variant="default"
-            title="Signups are closed"
-            className="mb-4"
-          >
-            New account registration is currently disabled on this deployment.
-          </Banner>
+          <div className="mb-6">
+            <AuthNotice title="Cadastros fechados">
+              A criação de novas contas está desativada neste ambiente.
+            </AuthNotice>
+          </div>
         )}
 
         {passwordAuthEnabled && (
-          <>
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoFocus
-                autoComplete="username"
-                disabled={loading}
-                placeholder="your-username"
-                error={usernameError}
-              />
+          <form onSubmit={handleSubmit}>
+            <FieldCell
+              label="Usuário"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+              autoComplete="username"
+              disabled={loading}
+              placeholder="seu-usuario"
+              hint={usernameError}
+            />
+            <FieldCell
+              type="password"
+              label="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={loading}
+              placeholder="••••••••"
+              hint={passwordError}
+            />
+            <FieldCell
+              type="password"
+              label="Confirmar senha"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={loading}
+              placeholder="••••••••"
+              hint={confirmError}
+            />
 
-              <Input
-                type="password"
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-                disabled={loading}
-                placeholder="••••••••"
-                error={passwordError}
-              />
+            {error && <AuthError>{error}</AuthError>}
 
-              <Input
-                type="password"
-                label="Confirm Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-                disabled={loading}
-                placeholder="••••••••"
-                error={confirmError}
-              />
-
-              {error && <Banner variant="error" title={error} />}
-
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={!canSubmit}
-                loading={loading}
-                className="w-full justify-center"
-              >
-                Create account
-              </Button>
-            </form>
-          </>
+            <BlockButton type="submit" disabled={!canSubmit} loading={loading} className="mt-4">
+              Criar conta
+            </BlockButton>
+          </form>
         )}
 
         {/* Gatekeeper sign-in options, shown whenever any auth vendor is configured. */}
         {authVendors.length > 0 && (
-          <div className={passwordAuthEnabled ? "mt-6" : ""}>
-            {passwordAuthEnabled && (
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1 bg-kumo-line" />
-                <span className="text-xs text-kumo-subtle">or</span>
-                <div className="h-px flex-1 bg-kumo-line" />
-              </div>
-            )}
+          <div className={passwordAuthEnabled ? "mt-8" : ""}>
+            {passwordAuthEnabled && <OrDivider />}
             <OAuthButtons rpcStub={rpcStub} vendors={authVendors} />
           </div>
         )}
 
         {passwordAuthEnabled && (
-          <p className="text-center text-sm text-kumo-subtle mt-6">
-            Already have an account?{" "}
-            <Link to="/" className="text-kumo-brand hover:underline font-medium">
-              Sign in
+          <p className="mt-5 text-[15px] tracking-[-0.01em] text-lume-muted">
+            Já tem conta?{" "}
+            <Link to="/" className="text-lume-ink underline decoration-lume-brand decoration-2 underline-offset-4 hover:text-lume-brand-ink">
+              Entrar
             </Link>
           </p>
         )}
       </div>
-    </div>
+    </AuthLayout>
   );
 }
