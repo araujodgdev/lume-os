@@ -1,5 +1,7 @@
 import { ArrowLeft, MagnifyingGlass, Plus, Sparkle, Trash } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Documentos, { type DocumentosClient } from "./Documentos";
+import type { Achado } from "../src/cofre/tipos";
 import type {
   AlteracoesCaso,
   AreaCaso,
@@ -12,12 +14,13 @@ import type {
 } from "../src/types";
 
 /** The Casos page's capability, served by `CasosManagementApi`. */
-export type CasosClient = {
+export type CasosClient = DocumentosClient & {
   list(filtro?: FiltroCasos): Promise<ResumoCaso[]>;
   get(id: string): Promise<Caso | null>;
   create(novo: NovoCaso): Promise<Caso>;
   update(id: string, alteracoes: AlteracoesCaso): Promise<Caso>;
   delete(id: string): Promise<void>;
+  buscarDocumentos(consulta: string): Promise<Achado[]>;
 };
 
 type Props = {
@@ -99,6 +102,7 @@ function CasosList({
   const [casos, setCasos] = useState<ResumoCaso[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [achados, setAchados] = useState<Achado[]>([]);
   const request = useRef(0);
 
   useEffect(() => {
@@ -114,8 +118,15 @@ function CasosList({
       const filtro: FiltroCasos = {};
       if (filter !== "todos") filtro.status = filter;
       if (debouncedQuery) filtro.busca = debouncedQuery;
-      const list = await api.list(filtro);
-      if (epoch === request.current) setCasos(list);
+      // Content search runs across every case, whatever the status filter.
+      const [list, encontrados] = await Promise.all([
+        api.list(filtro),
+        debouncedQuery ? api.buscarDocumentos(debouncedQuery) : Promise.resolve([]),
+      ]);
+      if (epoch === request.current) {
+        setCasos(list);
+        setAchados(encontrados);
+      }
     } catch (caught) {
       if (epoch === request.current) setError(messageOf(caught));
     } finally {
@@ -182,7 +193,7 @@ function CasosList({
         </p>
       ) : loading && casos.length === 0 ? (
         <p className="text-sm text-kumo-subtle">Carregando…</p>
-      ) : casos.length === 0 ? (
+      ) : casos.length === 0 && achados.length > 0 ? null : casos.length === 0 ? (
         <div className="border border-dashed border-kumo-line px-6 py-10 text-center text-sm text-kumo-subtle">
           {debouncedQuery || filter !== "ativo"
             ? "Nenhum caso encontrado."
@@ -213,7 +224,36 @@ function CasosList({
           ))}
         </ul>
       )}
+
+      {achados.length > 0 && (
+        <section aria-label="Nos documentos" className="flex flex-col gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Nos documentos</p>
+          <ul className="flex flex-col border-t border-kumo-line">
+            {achados.map((achado) => (
+              <li key={achado.documentoId}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(achado.casoId)}
+                  className="flex w-full flex-col gap-1 border-b border-kumo-line px-2 py-3 text-left hover:bg-kumo-tint"
+                >
+                  <span className="truncate text-sm">{achado.nome}</span>
+                  <span className="text-sm text-kumo-subtle">{destacar(achado.trecho)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
+  );
+}
+
+/** Renders a search snippet, turning the «» the index puts around matches into bold text. */
+export function destacar(trecho: string): ReactNode[] {
+  return trecho.split(/(«[^»]*»)/g).map((parte, i) =>
+    parte.startsWith("«") && parte.endsWith("»")
+      ? <strong key={i} className="font-medium text-kumo-default">{parte.slice(1, -1)}</strong>
+      : parte,
   );
 }
 
@@ -467,6 +507,8 @@ function CasoEditor({
           </button>
         </div>
       </div>
+
+      {saved && <Documentos api={api} casoId={saved.id} />}
     </main>
   );
 }

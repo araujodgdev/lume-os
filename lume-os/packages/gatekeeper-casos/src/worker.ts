@@ -1,3 +1,4 @@
+export { DocumentVault } from "./cofre/vault.js";
 export { CaseRegistry } from "./registry.js";
 export {
   GatekeeperVendor as default,

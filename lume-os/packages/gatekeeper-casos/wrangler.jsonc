@@ -16,7 +16,14 @@
       "tag": "v1",
       "new_sqlite_classes": ["CaseRegistry", "CasosGatekeeper"],
     },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["DocumentVault"],
+    },
   ],
+  // The Cofre's files. The starter's deploy provisions the bucket (or binds resources.cofreBucket)
+  // and adds the Workers AI binding, which local development runs without.
+  "r2_buckets": [{ "binding": "COFRE", "bucket_name": "lume-cofre-dev" }],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,

@@ -1,13 +1,26 @@
 import { DurableObject, RpcStub, RpcTarget } from "cloudflare:workers";
 import type { ActionDescription, ObservationDescription } from "@gadgets/workshop-shared/gatekeeper";
 import type { CasosGatekeeper } from "../src/casos.js";
-import type { AlteracoesCaso, Caso, CasosSession, FiltroCasos, NovoCaso, ResumoCaso } from "../src/types.js";
+import type {
+  AlteracoesCaso,
+  Caso,
+  CasosSession,
+  DocumentoInfo,
+  FiltroCasos,
+  NovoCaso,
+  ResultadoBusca,
+  ResumoCaso,
+  TrechoDocumento,
+} from "../src/types.js";
 
 export { default } from "../src/worker.js";
 export * from "../src/worker.js";
 // Vitest's ctx.exports analyzer does not follow the production barrel re-export.
 export { CasosGatekeeper, CasosAccount, CasosVerifier } from "../src/casos.js";
 export { CaseRegistry } from "../src/registry.js";
+export { DocumentVault } from "../src/cofre/vault.js";
+import { setExtratorFactory } from "../src/cofre/vault.js";
+import type { Extrator } from "../src/cofre/extrator.js";
 
 type Recorded =
   | { type: "observation"; description: ObservationDescription }
@@ -83,6 +96,22 @@ export class CasosTestParent extends DurableObject<Cloudflare.Env> {
     return (await this.#session(name, domain)).update(id, alteracoes);
   }
 
+  async listDocumentos(name: string, domain: string, casoId: string): Promise<DocumentoInfo[]> {
+    return (await this.#session(name, domain)).listDocumentos(casoId);
+  }
+
+  async lerDocumento(
+    name: string, domain: string, id: string, janela?: { inicio?: number; limite?: number },
+  ): Promise<TrechoDocumento | null> {
+    return (await this.#session(name, domain)).lerDocumento(id, janela);
+  }
+
+  async buscarDocumentos(
+    name: string, domain: string, consulta: string, casoId?: string,
+  ): Promise<ResultadoBusca[]> {
+    return (await this.#session(name, domain)).buscarDocumentos(consulta, casoId ? { casoId } : undefined);
+  }
+
   async catalog(name: string, domain: string) {
     const queue = new RpcStub(new TestApprovalQueue(this.#events));
     return this.#facet(name, domain).getAgentCatalog(queue as never);
@@ -98,5 +127,86 @@ export class CasosTestParent extends DurableObject<Cloudflare.Env> {
 
   async revert(name: string, domain: string, action: number) {
     return this.#facet(name, domain).revertAction(action);
+  }
+}
+
+/**
+ * A serializable description of a fake extractor, so a test can configure it over RPC and it lands
+ * in the same module instance as the vault.
+ */
+export type FakeExtrator = {
+  /** Markdown `paraMarkdown` returns, by file name; missing names return "". */
+  markdown?: Record<string, string>;
+  /** Page count of the original PDF. */
+  paginas?: number;
+  /** Whether OCR is configured. */
+  ocr?: boolean;
+  /** What each successive OCR call answers; "ok" once the script runs out. */
+  ocrRoteiro?: ("ok" | "longo" | "recusado" | "falha")[];
+  /** How many `paraMarkdown` calls fail before one succeeds. */
+  falhasMarkdown?: number;
+};
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+let chamadas: string[] = [];
+
+/** A fake batch PDF: its bytes just record how many pages it holds. */
+function lotePdf(paginas: number): Uint8Array {
+  return encoder.encode(`%PDF-paginas:${paginas}`);
+}
+
+function fakeExtrator(spec: FakeExtrator): Extrator {
+  const roteiro = [...(spec.ocrRoteiro ?? [])];
+  let falhas = spec.falhasMarkdown ?? 0;
+  const paginasDe = (pdf: Uint8Array) =>
+    Number(/^%PDF-paginas:(\d+)/.exec(decoder.decode(pdf))?.[1] ?? spec.paginas ?? 1);
+  return {
+    async paraMarkdown(nome) {
+      chamadas.push(`markdown:${nome}`);
+      if (falhas-- > 0) throw new Error("falha temporária");
+      return spec.markdown?.[nome] ?? "";
+    },
+    contarPaginas: async (pdf) => paginasDe(pdf),
+    async dividirPdf(pdf, porLote) {
+      const total = paginasDe(pdf);
+      const lotes: Uint8Array[] = [];
+      for (let feitas = 0; feitas < total; feitas += porLote) {
+        lotes.push(lotePdf(Math.min(porLote, total - feitas)));
+      }
+      return lotes;
+    },
+    ocr: spec.ocr
+      ? {
+          async transcreverPdf(pdf, primeira, paginas) {
+            chamadas.push(`ocr:${primeira}+${paginas}`);
+            if (paginasDe(pdf) !== paginas) throw new Error(`lote com ${paginasDe(pdf)} páginas, esperado ${paginas}`);
+            const proximo = roteiro.shift() ?? "ok";
+            if (proximo === "falha") throw new Error("OCR indisponível");
+            if (proximo !== "ok") return { status: proximo };
+            const texto = Array.from({ length: paginas }, (_, i) =>
+              `--- Página ${primeira + i} ---\nConteúdo da página ${primeira + i}`).join("\n");
+            return { status: "ok", texto };
+          },
+          async transcreverImagem() {
+            chamadas.push("ocr:imagem");
+            return { status: "ok", texto: "Texto da imagem digitalizada" };
+          },
+        }
+      : null,
+  };
+}
+
+/** Installs a fake extractor for every vault in this isolate, and resets the call log. */
+export class CofreTestHooks extends DurableObject<Cloudflare.Env> {
+  configurar(spec: FakeExtrator | null): void {
+    chamadas = [];
+    // One instance for the whole test, so its script and failure counter carry across alarms.
+    const fake = spec ? fakeExtrator(spec) : null;
+    setExtratorFactory(fake ? () => fake : null);
+  }
+
+  chamadas(): string[] {
+    return chamadas;
   }
 }

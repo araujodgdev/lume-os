@@ -39,12 +39,22 @@ import {
 import { normalizeCnj } from "./cnj.js";
 import type { CaseRegistry } from "./registry.js";
 import type {
+  Achado,
+  DocumentoCofre,
+  DocumentVault,
+  JanelaTexto,
+  UploadIniciado,
+} from "./cofre/vault.js";
+import type {
   AlteracoesCaso,
   Caso,
   CasosSession,
+  DocumentoInfo,
   FiltroCasos,
   NovoCaso,
+  ResultadoBusca,
   ResumoCaso,
+  TrechoDocumento,
 } from "./types.js";
 import TYPES_CODE from "./types.txt";
 import APP_HTML from "./generated/app.txt";
@@ -95,6 +105,26 @@ function registryFor(
   return exports.CaseRegistry.getByName(sharingDomain);
 }
 
+function vaultFor(exports: Cloudflare.Exports, sharingDomain: string): DurableObjectStub<DocumentVault> {
+  return exports.DocumentVault.getByName(sharingDomain);
+}
+
+/** The agent's view of a vault document: OCR in progress is just "processando". */
+export function documentoInfo(doc: DocumentoCofre): DocumentoInfo {
+  const info: DocumentoInfo = {
+    id: doc.id,
+    casoId: doc.casoId,
+    nome: doc.nome,
+    tipo: doc.mime,
+    tamanho: doc.tamanho,
+    status: doc.status === "ocr" || doc.status === "enviando" ? "processando" : doc.status,
+    criadoEm: doc.criadoEm,
+  };
+  if (doc.paginas !== undefined) info.paginas = doc.paginas;
+  if (doc.aviso) info.aviso = doc.aviso;
+  return info;
+}
+
 /**
  * The agent's view of the registry: the stored cases with this workspace's pending proposals laid
  * over them, so the agent reads back what it proposed before a lawyer approves it.
@@ -131,6 +161,7 @@ export type CasosBackend = {
   proposeUpdate(
     queue: NativeRpcStub<ApprovalQueue>, casoId: string, alteracoes: Alteracoes,
   ): Promise<void>;
+  vault(): DurableObjectStub<DocumentVault>;
 };
 
 @validateRpc()
@@ -186,6 +217,47 @@ export class CasosSessionImpl extends RpcTarget implements CasosSession {
   /** Proposes changes to a case. */
   update(id: string, alteracoes: AlteracoesCaso): Promise<void> {
     return this.#gatekeeper.proposeUpdate(this.#approvalQueue, id, validateAlteracoes(alteracoes));
+  }
+
+  /** Lists a case's documents. */
+  async listDocumentos(casoId: string): Promise<DocumentoInfo[]> {
+    const docs = (await this.#gatekeeper.vault().listar(casoId)).map(documentoInfo);
+    await this.#approvalQueue.authorizeObservation({
+      title: "Listar documentos do caso",
+      description: `Listou ${docs.length} documento(s) do caso ${casoId}.`,
+    });
+    return docs;
+  }
+
+  /** Reads a window of a document's text. */
+  async lerDocumento(
+    documentoId: string,
+    janela?: { inicio?: number; limite?: number },
+  ): Promise<TrechoDocumento | null> {
+    const vault = this.#gatekeeper.vault();
+    const doc = await vault.obter(documentoId);
+    const texto: JanelaTexto | null = doc
+      ? await vault.lerTexto(documentoId, janela?.inicio ?? 0, janela?.limite ?? 40_000)
+      : null;
+    await this.#approvalQueue.authorizeObservation({
+      title: doc ? `Ler documento: ${doc.nome}` : "Ler documento inexistente",
+      description: doc && texto
+        ? `Leu os caracteres ${texto.inicio} a ${texto.inicio + texto.texto.length} de ${texto.total} ` +
+          `do documento "${doc.nome}" (${doc.id}).`
+        : `Nenhum documento com id ${documentoId}.`,
+    });
+    return doc && texto ? { documentoId, ...texto } : null;
+  }
+
+  /** Searches the documents' text. */
+  async buscarDocumentos(consulta: string, filtro?: { casoId?: string }): Promise<ResultadoBusca[]> {
+    const achados: Achado[] = await this.#gatekeeper.vault().buscar(consulta, filtro?.casoId);
+    await this.#approvalQueue.authorizeObservation({
+      title: "Buscar nos documentos",
+      description: `Buscou "${consulta}" nos documentos${filtro?.casoId ? ` do caso ${filtro.casoId}` : ""} ` +
+        `e encontrou ${achados.length} documento(s).`,
+    });
+    return achados;
   }
 
   [Symbol.dispose](): void {
@@ -245,6 +317,7 @@ export class CasosGatekeeper
       simulated: () => this.#simulated(),
       proposeCreate: (queue, dados) => this.#proposeCreate(queue, dados),
       proposeUpdate: (queue, casoId, alteracoes) => this.#proposeUpdate(queue, casoId, alteracoes),
+      vault: () => vaultFor(this.ctx.exports, this.ctx.props.sharingDomain),
     }, approvalQueue.dup());
   }
 
@@ -253,6 +326,7 @@ export class CasosGatekeeper
     authorizer: NativeRpcStub<ObservationAuthorizer>,
   ): Promise<AgentCatalog | null> {
     const casos = (await this.#simulated()).filter((caso) => caso.status !== "encerrado");
+    const documentos = await vaultFor(this.ctx.exports, this.ctx.props.sharingDomain).contarPorCaso();
     await authorizer.authorizeObservation({
       title: "Listar casos em andamento",
       description: `Listou ${casos.length} caso(s) em andamento do escritório.`,
@@ -267,6 +341,7 @@ export class CasosGatekeeper
           caso.tribunal,
           caso.area,
           caso.status,
+          documentos[caso.id] ? `${documentos[caso.id]} documento(s)` : undefined,
         ].filter(Boolean).join(" · "),
       })),
     );
@@ -387,14 +462,16 @@ export class CasosGatekeeper
   }
 }
 
-/** What the Casos page may do: lawyers edit the registry directly, without approvals. */
+/** What the Casos page may do: lawyers edit the registry and the vault directly, without approvals. */
 @validateRpc()
 export class CasosManagementApi extends RpcTarget {
   readonly #registry: DurableObjectStub<CaseRegistry>;
+  readonly #vault: DurableObjectStub<DocumentVault>;
 
-  constructor(registry: DurableObjectStub<CaseRegistry>) {
+  constructor(registry: DurableObjectStub<CaseRegistry>, vault: DurableObjectStub<DocumentVault>) {
     super();
     this.#registry = registry;
+    this.#vault = vault;
   }
 
   /** Cases matching `filtro`, most recently changed first, without their `resumo`. */
@@ -418,9 +495,56 @@ export class CasosManagementApi extends RpcTarget {
     return (await this.#registry.update(id, validateAlteracoes(alteracoes))).caso;
   }
 
-  /** Deletes a case. */
+  /** Deletes a case and every document in it. */
   async delete(id: string): Promise<void> {
+    await this.#vault.excluirCaso(id);
     await this.#registry.delete(id);
+  }
+
+  /** A case's documents, newest first. */
+  documentos(casoId: string): Promise<DocumentoCofre[]> {
+    return this.#vault.listar(casoId);
+  }
+
+  /** Opens an upload to an existing case. */
+  async iniciarUpload(casoId: string, arquivo: { nome: string; tamanho: number }): Promise<UploadIniciado> {
+    if (!(await this.#registry.get(casoId))) throw new Error("Caso não encontrado.");
+    return this.#vault.iniciarUpload(casoId, arquivo);
+  }
+
+  /** Sends one chunk of an upload. */
+  enviarParte(uploadId: string, numero: number, bytes: Uint8Array): Promise<void> {
+    return this.#vault.enviarParte(uploadId, numero, bytes);
+  }
+
+  /** Completes an upload and queues the document for reading. */
+  concluirUpload(uploadId: string): Promise<DocumentoCofre> {
+    return this.#vault.concluirUpload(uploadId);
+  }
+
+  /** Abandons an upload. */
+  cancelarUpload(uploadId: string): Promise<void> {
+    return this.#vault.cancelarUpload(uploadId);
+  }
+
+  /** A window of a document's extracted text, to check what was read. */
+  textoDocumento(id: string, inicio?: number): Promise<JanelaTexto | null> {
+    return this.#vault.lerTexto(id, inicio ?? 0, 100_000);
+  }
+
+  /** One chunk of a document's original file, for downloading. */
+  baixarParte(id: string, numero: number): Promise<Uint8Array> {
+    return this.#vault.baixarParte(id, numero);
+  }
+
+  /** Deletes a document. */
+  excluirDocumento(id: string): Promise<void> {
+    return this.#vault.excluir(id);
+  }
+
+  /** Full-text search across every case's documents. */
+  buscarDocumentos(consulta: string): Promise<Achado[]> {
+    return this.#vault.buscar(consulta);
   }
 }
 
@@ -452,7 +576,10 @@ export class CasosAccount
   /** Opens the Casos page. Every lawyer may edit, so `isAdmin` changes nothing. */
   async startAppUi(_context: AppUiContext): Promise<GatekeeperUiFrame> {
     const ui = new NativeRpcStub(
-      new CasosManagementApi(registryFor(this.ctx.exports, this.ctx.props.sharingDomain)),
+      new CasosManagementApi(
+        registryFor(this.ctx.exports, this.ctx.props.sharingDomain),
+        vaultFor(this.ctx.exports, this.ctx.props.sharingDomain),
+      ),
     );
     return { iframeHtml: APP_HTML, ui };
   }
