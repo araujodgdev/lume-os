@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { BookOpen, Sparkle, type Icon as PhosphorIcon } from '@phosphor-icons/react'
 import { useDocumentTitle } from '../useDocumentTitle'
 import ComingSoonPreview from '../components/ComingSoonPreview'
@@ -11,6 +11,10 @@ import PageHeader from '../components/brand/PageHeader'
  * frosted design mock so the nav entry has a stable, on-language target.
  */
 export const Route = createFileRoute('/context')({
+  // Lume: hidden from the legal product (see docs/fork.md). The page stays for upstream merges.
+  beforeLoad: () => {
+    throw redirect({ to: '/', replace: true })
+  },
   component: ContextPage,
 })
 

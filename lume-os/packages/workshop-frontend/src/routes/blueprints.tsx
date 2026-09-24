@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import BlueprintList from '../components/BlueprintList'
 import { useDocumentTitle } from '../useDocumentTitle'
 import PageHeader from '../components/brand/PageHeader'
@@ -9,6 +9,10 @@ import PageHeader from '../components/brand/PageHeader'
  * Upload, so the two actions line up) and from the rail's bottom nav.
  */
 export const Route = createFileRoute('/blueprints')({
+  // Lume: hidden from the legal product (see docs/fork.md). The page stays for upstream merges.
+  beforeLoad: () => {
+    throw redirect({ to: '/', replace: true })
+  },
   component: BlueprintsRoutePage,
 })
 

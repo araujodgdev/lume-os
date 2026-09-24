@@ -6,7 +6,6 @@ import {
   Pencil,
   Check,
   X,
-  Blueprint,
   Trash,
   ArrowsOutSimple,
   Pulse,
@@ -162,10 +161,12 @@ function formatHeaderCost(cost: number) {
 
 // The first tab is named after what the selected workpiece is ("Document" for a gadget built from
 // a document blueprint), falling back to "App" when it declares no format.
+//
+// Lume: no "Código" tab -- lawyers work on the document, not its source (see docs/fork.md). The
+// code panel below stays mounted, hidden, because it still reports `hasCode` for the layout.
 function rightTabs(output?: BlueprintOutput): { value: RightTab; label: string }[] {
   return [
     { value: 'app', label: formatOf(output).noun },
-    { value: 'code', label: 'Código' },
     { value: 'connections', label: 'Conexões' },
   ]
 }
@@ -949,7 +950,6 @@ export default function GadgetEditor() {
     turnOutputRef.current = null
     if (!output || output.chatId !== chatId || output.userSelectedTab) return
     if (output.wroteGadgetCode) setActiveTab('app')
-    else if (output.wroteFile) setActiveTab('code')
   }, [])
 
   const handleStreamingActiveFileChange = useCallback(
@@ -964,7 +964,6 @@ export default function GadgetEditor() {
       if (file.filename === 'client.js' || file.filename === 'server.js') {
         output.wroteGadgetCode = true
       }
-      if (!output.userSelectedTab) setActiveTab('code')
     }
     setStreamingActiveFileState({chatId, file})
   }, [])
@@ -1428,14 +1427,7 @@ export default function GadgetEditor() {
             <ShareNetwork size={15} />
           </WorkshopIconButton>
 
-          <WorkshopIconButton
-            onClick={() => setBlueprintModalOpen(true)}
-            disabled={!selectedGadgetStub}
-            title="Modelos"
-            aria-label="Modelos"
-          >
-            <Blueprint size={16} />
-          </WorkshopIconButton>
+          {/* Lume: no "Modelos" (publish as blueprint) button; see docs/fork.md. */}
 
           {!metadata.owner && (
             <WorkshopIconButton
@@ -1618,7 +1610,7 @@ export default function GadgetEditor() {
               )}
 
               <WorkshopIconButton
-                aria-label={paneShowsActivity ? 'Fechar atividade' : 'Fechar painel do gadget'}
+                aria-label={paneShowsActivity ? 'Fechar atividade' : 'Fechar painel do arquivo'}
                 title="Fechar"
                 onClick={closeWorkspacePane}
               >

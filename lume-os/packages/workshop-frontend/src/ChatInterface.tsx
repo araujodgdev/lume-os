@@ -3829,7 +3829,7 @@ function DiscardPendingChangesPopover({
             Descartar todas as alterações pendentes?
           </Popover.Title>
           <p className="mt-0.5 text-[11.5px] leading-4 tracking-[-0.15px] text-kumo-subtle">
-            Volta para a última versão aceita. Os gadgets criados por essas alterações serão
+            Volta para a última versão aceita. Os arquivos criados por essas alterações serão
             excluídos de vez. As alterações pendentes não podem ser recuperadas.
           </p>
           <p className="mt-2 border-t border-kumo-line pt-2 text-[11px] leading-[15px] tracking-[-0.1px] text-kumo-inactive">
@@ -7474,7 +7474,7 @@ function ChatInterface({
                                   content={
                                     isMerge
                                       ? `Alterações do rascunho aceitas${ts ? ` até ${formatFullTimestamp(ts)}` : ""}.`
-                                      : `Voltou ao estado do gadget antes da mensagem enviada ${ts ? `às ${ts.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "antes"}.`
+                                      : `Voltou ao estado do arquivo antes da mensagem enviada ${ts ? `às ${ts.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "antes"}.`
                                   }
                                   asChild
                                 >
@@ -7500,12 +7500,12 @@ function ChatInterface({
 
                         {msg.type === "useGadget" && (
                           <div className="max-w-[860px] text-[14px] leading-5 tracking-[-0.25px] text-kumo-subtle">
-                            <Tooltip content={`Usou o gadget em ${formatFullTimestamp(msg.timestamp)}`} asChild>
+                            <Tooltip content={`Usou o arquivo em ${formatFullTimestamp(msg.timestamp)}`} asChild>
                               <span className="inline-flex items-center gap-3 px-1.5 py-1">
                                 <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-kumo-inactive" aria-hidden="true">
                                   <Plug size={16} />
                                 </span>
-                                <span>Usou o gadget</span>
+                                <span>Usou o arquivo</span>
                               </span>
                             </Tooltip>
                           </div>
@@ -7614,7 +7614,7 @@ function ChatInterface({
                         : "Alterações de rascunho em andamento";
                       const description = isUserAuthored
                         ? "Suas edições ainda são um rascunho ativo."
-                        : `${latestAuthor?.name ?? "O agente"} está editando alterações deste gadget.`;
+                        : `${latestAuthor?.name ?? "O agente"} está editando alterações deste arquivo.`;
                       const lastDraftEntry =
                         currentDraftState.entries[
                           currentDraftState.entries.length - 1
@@ -7652,7 +7652,7 @@ function ChatInterface({
                                   Discard
                                 </button>
                               </Tooltip>
-                              <Tooltip content="Salvar estas edições como uma versão de rascunho. Elas não afetam o gadget até você aceitar as alterações." asChild>
+                              <Tooltip content="Salvar estas edições como uma versão de rascunho. Elas não afetam o arquivo até você aceitar as alterações." asChild>
                                 <button
                                   type="button"
                                   disabled={isAgentActive}
@@ -7886,7 +7886,7 @@ function ChatInterface({
                             ? "Aguarde o agente terminar antes de aceitar as alterações."
                             : isDiscardingChanges
                               ? "Aguarde as alterações pendentes terminarem de ser descartadas."
-                              : "Manter este rascunho e torná-lo a versão atual do gadget."} asChild>
+                              : "Manter este rascunho e torná-lo a versão atual do arquivo."} asChild>
                             <WorkshopButton
                               disabled={changesActionsDisabled}
                               onClick={() =>

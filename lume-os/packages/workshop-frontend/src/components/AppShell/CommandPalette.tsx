@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
-  Blueprint,
   MagnifyingGlass,
   Plus,
   SquaresFour,
@@ -25,10 +24,8 @@ type Command = {
   run: () => void
 }
 
-type BlueprintEntry = { id: string; title: string; recency: number }
 type PaletteData = {
   gadgets: GadgetMetadataWithTimestamps[]
-  blueprints: BlueprintEntry[]
   formats: OutputFormatOffer[]
 }
 
@@ -37,31 +34,6 @@ type PaletteData = {
 // hammering ⌘K doesn't spam RPCs while newly-created items still appear on the next open.
 const PALETTE_CACHE_TTL_MS = 30_000
 let paletteCache: { data: PaletteData; fetchedAt: number } | null = null
-
-// Merge the user's published blueprints and their library into a single de-duplicated list, keyed
-// by id and keeping the most-recent timestamp from either source.
-function mergeBlueprints(
-  own: { id: string; title: string; lastUpdated: Date }[],
-  library: { id: string; metadata: { title: string }; addedAt: Date }[],
-): BlueprintEntry[] {
-  const map = new Map<string, BlueprintEntry>()
-  for (const b of library) {
-    map.set(b.id, {
-      id: b.id,
-      title: b.metadata.title || 'Modelo sem título',
-      recency: b.addedAt.getTime(),
-    })
-  }
-  for (const b of own) {
-    const prev = map.get(b.id)
-    map.set(b.id, {
-      id: b.id,
-      title: b.title || prev?.title || 'Modelo sem título',
-      recency: Math.max(prev?.recency ?? 0, b.lastUpdated.getTime()),
-    })
-  }
-  return Array.from(map.values())
-}
 
 // A command after fuzzy matching: carries the indices of the characters that matched the query so
 // we can bold them in the label.
@@ -149,9 +121,6 @@ export default function CommandPalette({
   const [gadgets, setGadgets] = useState<GadgetMetadataWithTimestamps[]>(
     () => paletteCache?.data.gadgets ?? [],
   )
-  const [blueprints, setBlueprints] = useState<BlueprintEntry[]>(
-    () => paletteCache?.data.blueprints ?? [],
-  )
   const [formats, setFormats] = useState<OutputFormatOffer[]>(
     () => paletteCache?.data.formats ?? [],
   )
@@ -171,7 +140,6 @@ export default function CommandPalette({
 
     if (paletteCache) {
       setGadgets(paletteCache.data.gadgets)
-      setBlueprints(paletteCache.data.blueprints)
       setFormats(paletteCache.data.formats)
     }
 
@@ -180,20 +148,16 @@ export default function CommandPalette({
     if (!isFresh) {
       Promise.all([
         authenticatedApi.listGadgets(),
-        authenticatedApi.listOwnBlueprints(),
-        authenticatedApi.listLibraryBlueprints(),
         authenticatedApi.listOutputFormats(),
       ])
-        .then(([gadgetList, own, library, formatList]) => {
+        .then(([gadgetList, formatList]) => {
           const data: PaletteData = {
             gadgets: gadgetList,
-            blueprints: mergeBlueprints(own, library),
             formats: formatList,
           }
           paletteCache = { data, fetchedAt: Date.now() }
           if (cancelled) return
           setGadgets(data.gadgets)
-          setBlueprints(data.blueprints)
           setFormats(data.formats)
         })
         .catch((err) => console.error('Command palette: failed to load items', err))
@@ -247,12 +211,6 @@ export default function CommandPalette({
         icon: <SquaresFour size={15} />,
         run: () => navigate({ to: '/workspaces' }),
       },
-      {
-        id: 'nav-blueprints',
-        label: 'Modelos',
-        icon: <Blueprint size={15} />,
-        run: () => navigate({ to: '/explore' }),
-      },
     ]
 
     const wsBase: Command[] = gadgets
@@ -263,16 +221,6 @@ export default function CommandPalette({
         hint: 'Espaço',
         icon: <SquaresFour size={15} className="text-kumo-inactive" />,
         run: () => navigate({ to: '/workspace/$id', params: { id: g.id } }),
-      }))
-
-    const bpBase: Command[] = blueprints
-      .toSorted((a, b) => b.recency - a.recency)
-      .map((b) => ({
-        id: `bp-${b.id}`,
-        label: b.title,
-        hint: 'Modelo',
-        icon: <Blueprint size={15} className="text-kumo-inactive" />,
-        run: () => navigate({ to: '/blueprint/$id', params: { id: b.id } }),
       }))
 
     // Empty state shows a short, curated list (actions + a few recent workspaces). Once the user
@@ -292,7 +240,6 @@ export default function CommandPalette({
       ? [
           { heading: 'Ações', items: refine(nav, nav.length) },
           { heading: 'Espaços de trabalho', items: refine(wsBase, 8) },
-          { heading: 'Modelos', items: refine(bpBase, 8) },
         ]
       : [
           { heading: 'Ações', items: refine(nav, nav.length) },
@@ -302,7 +249,7 @@ export default function CommandPalette({
     const groups = built.filter((g) => g.items.length > 0)
     const flat = groups.flatMap((g) => g.items)
     return { groups, flat }
-  }, [query, gadgets, blueprints, formats, navigate, createFormat])
+  }, [query, gadgets, formats, navigate, createFormat])
 
   // Keep the active index in range as the result set changes.
   useEffect(() => {

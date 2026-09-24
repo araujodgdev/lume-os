@@ -12,7 +12,6 @@ import {
 import {
   Camera,
   Check,
-  Plus,
   PlugsConnected,
   Sparkle,
   UsersThree,
@@ -317,7 +316,7 @@ export default function OnboardingWizard({
     { label: 'Perfil', title: 'Como você quer aparecer?', lead: 'É assim que você aparece nas conversas e nos espaços compartilhados.' },
     { label: 'Modelo', title: 'Escolha seu modelo.', lead: 'O modelo de IA usado por padrão nas suas conversas. Dá para trocar a qualquer momento.' },
     ...(showConnectionsStep
-      ? [{ label: 'Conectores', title: 'Conecte seus serviços.', lead: 'Ligue suas contas para que seus gadgets possam acessá-las. Você pode adicionar mais depois.' }]
+      ? [{ label: 'Conectores', title: 'Conecte seus serviços.', lead: 'Ligue suas contas para que o agente possa consultá-las. Você pode adicionar mais depois.' }]
       : []),
     { label: 'Pronto', title: 'Tudo pronto.', lead: `Um gostinho do que dá para fazer no ${siteName}.` },
   ]
@@ -474,18 +473,12 @@ export default function OnboardingWizard({
                         {models.length === 0 && (
                           <div className="border border-lume-ink px-4 py-5">
                             <p className="text-[16px] tracking-[-0.01em]">Nenhum modelo configurado ainda.</p>
-                            <p className="mt-1 text-[14px] text-lume-muted">Adicione um modelo para começar.</p>
+                            <p className="mt-1 text-[14px] text-lume-muted">Fale com o administrador do escritório.</p>
                           </div>
                         )}
                       </div>
 
-                      <button
-                        onClick={() => setAddModelOpen(true)}
-                        className="-mt-px flex h-12 w-full items-center gap-2 border border-dashed border-lume-ink px-4 font-mono text-[12px] uppercase tracking-[0.04em] transition-colors duration-300 hover:bg-white"
-                      >
-                        <Plus size={14} weight="bold" />
-                        Adicionar modelo
-                      </button>
+                      {/* Lume: models are managed by the deployment, so there is no "add model" button. */}
                     </>
                   )}
                 </div>
@@ -614,23 +607,23 @@ interface ShowcaseFeature {
 const SHOWCASE_FEATURES: ShowcaseFeature[] = [
   {
     icon: Sparkle,
-    title: 'Crie gadgets ou só converse',
-    description: 'Monte apps completos ou mantenha simples, só conversando com o agente. Você escolhe.',
+    title: 'Pesquise, redija e revise',
+    description: 'Peça ao agente uma petição, um parecer ou a revisão de um contrato, e receba um documento pronto para editar.',
   },
   {
     icon: UsersThree,
     title: 'Colabore em tempo real',
-    description: 'Compartilhe um espaço com o time e trabalhem juntos, ao vivo.',
+    description: 'Compartilhe um espaço com os colegas do escritório e trabalhem juntos, ao vivo.',
   },
   {
     icon: Key,
-    title: 'Use seus próprios modelos',
-    description: 'Conecte tokens de API de qualquer provedor para usar os modelos que você prefere.',
+    title: 'Sigilo por padrão',
+    description: 'Os dados do escritório ficam isolados nesta instância e o agente só acessa o que você autorizar.',
   },
   {
     icon: Plugs,
-    title: 'IA junto das suas ferramentas',
-    description: 'Peça para a IA revisar um Google Doc, resumir conversas do Slack, organizar tarefas e mais.',
+    title: 'Documentos, planilhas e apresentações',
+    description: 'Peças e pareceres, cálculos e controles, apresentações para o cliente: tudo no mesmo espaço do caso.',
   },
 ]
 

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState, useEffect, useRef } from 'react'
 import { DropdownMenu, useKumoToastManager } from '@cloudflare/kumo'
 import { useAuthenticatedApi } from '../AuthContext'
@@ -21,7 +21,13 @@ import PageHeader from '../components/brand/PageHeader'
 import { ACTION_BUTTON } from '../components/brand/BrandControls'
 import { MENU_CONTENT, MENU_ITEM, MENU_ITEM_DANGER } from '../components/menuStyles'
 
-export const Route = createFileRoute('/providers')({ component: ProvidersPage })
+export const Route = createFileRoute('/providers')({
+  // Lume: hidden from the legal product (see docs/fork.md). The page stays for upstream merges.
+  beforeLoad: () => {
+    throw redirect({ to: '/', replace: true })
+  },
+  component: ProvidersPage,
+})
 
 // ─── constants ────────────────────────────────────────────────────────────────
 

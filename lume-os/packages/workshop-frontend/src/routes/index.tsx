@@ -169,7 +169,7 @@ export function HomePageContent({ prompt }: HomeSearch) {
             trabalhar hoje?
           </h1>
           <p className="mt-6 max-w-[520px] text-[17px] leading-[1.45] tracking-[-0.01em] text-kumo-subtle">
-            Faça uma pergunta, gere um arquivo ou crie um app que trabalha com as suas ferramentas e dados.
+            Faça uma pergunta, pesquise, redija uma peça ou revise um documento: o agente trabalha a partir do caso inteiro.
           </p>
         </header>
 

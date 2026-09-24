@@ -372,7 +372,7 @@ function GadgetUISession({ gadget, height, reloadTrigger, isVisible = true, chat
           port.close()
           if (!isCurrent()) return
           console.error('Failed to establish RPC connection:', caught)
-          setError('Não foi possível conectar o gadget ao servidor')
+          setError('Não foi possível conectar o arquivo ao servidor')
         } finally {
           if (handshakePendingRef.current === generation) handshakePendingRef.current = null
         }
@@ -403,7 +403,7 @@ function GadgetUISession({ gadget, height, reloadTrigger, isVisible = true, chat
         style={{ height }}
       >
         <Text variant="secondary">
-          Abra esta aba para carregar a interface do gadget
+          Abra esta aba para carregar a interface do arquivo
         </Text>
       </div>
     )
@@ -479,7 +479,7 @@ function GadgetUISession({ gadget, height, reloadTrigger, isVisible = true, chat
               Nenhuma interface de gadget ainda
             </h2>
             <p className="text-[15px] leading-5 font-normal tracking-[-0.3px] text-kumo-subtle">
-              Quando o gadget criar uma, ela aparece aqui.
+              Quando o arquivo criar uma, ela aparece aqui.
             </p>
           </div>
         </div>
@@ -500,7 +500,7 @@ function GadgetUISession({ gadget, height, reloadTrigger, isVisible = true, chat
           border: 'none'
         }}
         sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-        title="Interface do gadget"
+        title="Interface do arquivo"
       />
     </div>
   )

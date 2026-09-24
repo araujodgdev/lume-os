@@ -77,7 +77,7 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
         de volta.
       </AuthTitle>
       <AuthLead>
-        Entre no {siteName} para retomar seus espaços de trabalho, agentes e gadgets de onde parou.
+        Entre no {siteName} para retomar seus espaços de trabalho e documentos de onde parou.
       </AuthLead>
 
       <div className="mt-auto w-full max-w-[560px] pt-12">

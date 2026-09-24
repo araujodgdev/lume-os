@@ -806,7 +806,7 @@ export default function AdminPage() {
           <p className="text-sm text-kumo-subtle mb-5">
             Ligue ou desligue conectores e tipos de recurso de cada serviço. Conectores provisionados
             automaticamente (como a Biblioteca de Contexto) têm três modos &mdash; desligado, opcional
-            ou ligado para todos. As mudanças não revogam o acesso que um gadget já tem.
+            ou ligado para todos. As mudanças não revogam o acesso que um arquivo já tem.
           </p>
 
           {resourceVendors.length === 0 && (

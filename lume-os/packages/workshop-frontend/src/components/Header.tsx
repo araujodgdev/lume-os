@@ -73,13 +73,6 @@ export default function Header() {
             >
               Gatekeepers
             </Link>
-            <Link
-              to="/explore"
-              className={navLinkClass}
-              activeProps={{ className: navLinkActiveClass }}
-            >
-              Explore
-            </Link>
             {gatekeeperApps.map((app) => (
               <Link
                 key={app.id}
@@ -137,14 +130,6 @@ export default function Header() {
             >
               Gatekeepers
             </Link>
-            <Link
-              to="/explore"
-              onClick={closeMobileMenu}
-              className={navLinkClass}
-              activeProps={{ className: navLinkActiveClass }}
-            >
-              Explore
-            </Link>
             {gatekeeperApps.map((app) => (
               <Link
                 key={app.id}
@@ -169,14 +154,6 @@ export default function Header() {
                   activeProps={{ className: navLinkActiveClass }}
                 >
                   Profile
-                </Link>
-                <Link
-                  to="/providers"
-                  onClick={closeMobileMenu}
-                  className={navLinkClass}
-                  activeProps={{ className: navLinkActiveClass }}
-                >
-                  Providers
                 </Link>
                 {auth.isAdmin && (
                   <Link
