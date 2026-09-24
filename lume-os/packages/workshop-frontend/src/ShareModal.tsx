@@ -52,12 +52,12 @@ function formatRelativeTime(date: Date): string {
 
 const ROLE_LABELS: Record<CollaboratorRole, string> = {
   build: 'Espaço',
-  use: 'Só o gadget',
+  use: 'Só o arquivo',
 }
 
 const ROLE_DESCRIPTIONS: Record<CollaboratorRole, string> = {
-  build: 'Editar gadgets, usar o chat e gerenciar o acesso.',
-  use: 'Usar os gadgets sem chat com o agente nem edição.',
+  build: 'Editar arquivos, usar o chat e gerenciar o acesso.',
+  use: 'Usar os arquivos sem chat com o agente nem edição.',
 }
 
 function roleLabel(role: CollaboratorRole | undefined): string {
@@ -786,7 +786,7 @@ export default function ShareModal({ open, onClose, overseer, metadata, currentU
                 Ele acessou dados sensíveis que só você, como dono, pode ver.
               </p>
               <p className="mt-2 max-w-[320px] text-balance text-[12px] leading-[18px] tracking-[-0.1px] text-kumo-subtle">
-                Para compartilhar algo parecido, crie um modelo a partir de um gadget deste espaço e use-o para criar um novo espaço.
+                Para compartilhar algo parecido, crie um novo espaço sem esses dados.
               </p>
             </div>
           ) : (

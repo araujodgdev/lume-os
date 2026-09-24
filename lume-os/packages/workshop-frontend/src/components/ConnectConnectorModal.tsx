@@ -317,10 +317,10 @@ export default function ConnectConnectorModal({
                 />
                 <div className="text-[12px] leading-[17px] font-normal tracking-[-0.2px] text-kumo-default">
                   <span className="font-medium">
-                    O conector fica entre {vendorDescription.displayName} e os seus gadgets.
+                    O conector fica entre {vendorDescription.displayName} e os seus arquivos.
                   </span>{' '}
                   <span className="text-kumo-subtle">
-                    Cada gadget só vê os recursos que você conecta. Se o espaço for compartilhado,
+                    Cada arquivo só vê os recursos que você conecta. Se o espaço for compartilhado,
                     o conector verifica se as outras pessoas têm as permissões necessárias antes de
                     acessarem esses recursos.
                   </span>
@@ -331,7 +331,7 @@ export default function ConnectConnectorModal({
 
           {isManage && (
             <div className="mt-5 rounded-lg border border-kumo-line bg-kumo-elevated px-4 py-3 text-[12px] leading-[17px] font-normal tracking-[-0.2px] text-kumo-subtle">
-              Esta conta pode ser usada pelos gadgets aos quais você a conectar. Quem recebe o compartilhamento
+              Esta conta pode ser usada pelos arquivos aos quais você a conectar. Quem recebe o compartilhamento
               precisa ter as permissões necessárias antes de acessar esses recursos conectados.
             </div>
           )}
@@ -340,7 +340,7 @@ export default function ConnectConnectorModal({
         <div className="shrink-0 flex items-center justify-between gap-3 border-t border-kumo-line bg-kumo-base px-5 py-3">
           {isManage && confirmingDisconnect ? (
             <p className="m-0 min-w-0 flex-1 text-[12px] leading-4 font-normal tracking-[-0.2px] text-kumo-default">
-              Desconectar {vendorDescription.displayName}? Os gadgets que usam esta conta perderão o acesso.
+              Desconectar {vendorDescription.displayName}? Os arquivos que usam esta conta perderão o acesso.
             </p>
           ) : isManage && hasPending ? (
             <p className="m-0 min-w-0 flex-1 text-[12px] leading-4 font-normal tracking-[-0.2px] text-kumo-subtle">

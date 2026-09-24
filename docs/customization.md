@@ -32,7 +32,6 @@ The custom logo appears in the app chrome, sign-in screens, and browser tab on e
 | `access` | Cloudflare Access trust and administrator list | Access team issuer, application audience, and verified email list |
 | `aiGateway` | Deployment-managed model catalog | Enabled by default over the Workers AI binding; which providers to advertise, and which gateway |
 | `context` | Context sharing boundary, snapshot KV, and optional Artifacts repositories | `null` to scope data to the public origin, or a pinned stable label; automatic or existing KV; Git-backed collections disabled or enabled |
-| `customGatekeeper` | Example integration identity and guidance | Organization-specific display text |
 | `errorReporting` | Private explicit-issue destination | Console Reporter enabled state, environment, and release metadata |
 | `resources` | Blueprint/avatar KV and blueprint-content R2 | `null` to provision or explicit IDs/names to reuse |
 | `observability` | Worker telemetry | Structured logs, invocation logs, traces, and sampling; see the [observability guide](observability.md) |
@@ -49,7 +48,7 @@ The deployment is six Workers. Keep their names unique: service bindings use the
 | `workshop` | The Lume OS backend, holding all user data in Durable Objects. |
 | `context` | The Context Gatekeeper. |
 | `scheduler` | The Scheduler Gatekeeper, which gives agents scheduled and recurring work. |
-| `customGatekeeper` | This repository's example integration. |
+| `casos` | The Casos Gatekeeper: the firm's case registry, its page, and the agent's `CASOS` binding. See its [README](../lume-os/packages/gatekeeper-casos/README.md). |
 | `errorReporter` | The private explicit-issue destination. |
 
 Context and Scheduler are *ambient*: upstream's release marks both `PREINSTALL`, so the hosted flow installs them on every instance and this starter deploys them for the same reason. Neither takes configuration beyond its name — the Scheduler takes none at all.
@@ -191,9 +190,9 @@ The starter enables structured custom logs and a private console-backed Error Re
 
 ## Custom Gatekeepers
 
-Keep deployment-owned Gatekeepers under `packages/`, outside the `lume-os` submodule. `scripts/deploy.ts` binds this repository's example as `GATEKEEPER_CUSTOM` and Context as `GATEKEEPER_CONTEXT`, twice each: on the Workshop with the `GatekeeperVendor` entrypoint for RPC, and on the router with no entrypoint, where the binding name is what routes `/gatekeeper/custom` and `/gatekeeper/context` to it. A Gatekeeper that serves HTTP — an OAuth redirect, for instance — needs both.
+Keep deployment-owned Gatekeepers under `packages/`, outside `lume-os/`. `scripts/deploy.ts` binds each Gatekeeper twice: on the Workshop with the `GatekeeperVendor` entrypoint for RPC, and on the router with no entrypoint, where the binding name is what routes `/gatekeeper/<name>` to it (`GATEKEEPER_CONTEXT` serves `/gatekeeper/context`). A Gatekeeper that serves HTTP — an OAuth redirect, for instance — needs both.
 
-The minimal example flow is:
+The deployment ships no example Gatekeeper: the upstream-style example was removed as unused (see [fork.md](fork.md)). Restore it as the starting point for a new one with `git checkout e17e5fa -- packages/custom-gatekeeper`, then add it to `packageDirs`, `buildCommands`, both service-binding lists, and the deploy order in `scripts/deploy.ts`. Its flow is:
 
 1. `types.d.ts` defines the API visible to TypeScript callers.
 2. `CustomSessionImpl.getDeploymentInfo()` authorizes an observation before returning data.
@@ -202,7 +201,7 @@ The minimal example flow is:
 5. `GatekeeperVendor` advertises credential-free auto-provisioning.
 6. The Workshop service binding makes the vendor available to Lume OS.
 
-Read the [package guide](../packages/custom-gatekeeper/README.md) and upstream [`write-gatekeeper` skill](https://github.com/cloudflare/cloudflare-os/blob/main/.agents/skills/write-gatekeeper/SKILL.md) before adding OAuth, URL-scoped resources, writes, simulations, hooks, configurator UI, or stricter observer verification.
+Read the upstream [`write-gatekeeper` skill](https://github.com/cloudflare/cloudflare-os/blob/main/.agents/skills/write-gatekeeper/SKILL.md) before adding OAuth, URL-scoped resources, writes, simulations, hooks, configurator UI, or stricter observer verification.
 
 ## Code extensions
 
@@ -210,23 +209,25 @@ Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflar
 
 ## Upgrade
 
-Lume OS is vendored: `lume-os/` holds a plain copy of an upstream commit, recorded in `.lume-os-upstream`. There is no submodule.
+`lume-os/` is a light fork of upstream: a vendored copy of the commit recorded in `.upstream-commit`, plus the Lume changes listed in [fork.md](fork.md). There is no submodule. Replacing the directory wholesale would erase those changes, so upgrades apply the upstream diff on top instead:
 
-1. Note the commit in `.lume-os-upstream` for rollback.
-2. Replace `lume-os/` with the intended upstream commit and write its SHA to `.lume-os-upstream`, both in one commit:
+1. Note the commit in `.upstream-commit` for rollback.
+2. Build the diff between the old and new upstream commits and apply it to `lume-os/`:
 
    ```sh
-   SHA=<upstream commit>
-   git rm -rq lume-os && rm -rf lume-os && mkdir lume-os
-   curl -sSL "https://github.com/cloudflare/cloudflare-os/archive/$SHA.tar.gz" | tar xz --strip-components=1 -C lume-os
-   echo "$SHA" > .lume-os-upstream
-   git add lume-os .lume-os-upstream
+   OLD=$(cat .upstream-commit) NEW=<upstream commit>
+   fetch() { rm -rf "$2" && mkdir -p "$2" && curl -sSL "https://github.com/cloudflare/cloudflare-os/archive/$1.tar.gz" | tar xz --strip-components=1 -C "$2"; }
+   fetch "$OLD" /tmp/up-old && fetch "$NEW" /tmp/up-new
+   (cd /tmp && git diff --no-index --binary up-old up-new) > /tmp/upstream.patch
+   git apply -p2 --directory=lume-os --reject /tmp/upstream.patch
+   echo "$NEW" > .upstream-commit
    ```
 
-3. Review Workshop and Context Wrangler base-config changes and Gatekeeper contracts.
-4. Diff `lume-os/pnpm-workspace.yaml`'s `catalog:` against this repository's and re-sync it. Two `lume-os` packages are members of this workspace and resolve `catalog:` here, so a missing entry fails the install and a *stale* one silently gives the tree two copies of `capnweb` — a failure that only appears once the two installs are separate, as they are in CI.
-5. Run `pnpm install`, `pnpm --dir lume-os install`, `pnpm lint`, and `pnpm check`.
-6. Deploy and verify Access, administrator access, storage, configured AI, Context, custom observations, and the Error Reporter query surface.
-7. If needed, revert that commit and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
+3. Resolve every `*.rej` hunk by hand, keeping the deviations in [fork.md](fork.md), and delete the `.rej` files. Commit the result with `.upstream-commit` in one commit.
+4. Review Workshop and Context Wrangler base-config changes and Gatekeeper contracts.
+5. Diff `lume-os/pnpm-workspace.yaml`'s `catalog:` against this repository's and re-sync it. Two `lume-os` packages are members of this workspace and resolve `catalog:` here, so a missing entry fails the install and a *stale* one silently gives the tree two copies of `capnweb` — a failure that only appears once the two installs are separate, as they are in CI.
+6. Run `pnpm install`, `pnpm --dir lume-os install`, `pnpm lint`, and `pnpm check`.
+7. Deploy and verify sign-in, administrator access, storage, configured AI, Context, the Scheduler, and the Error Reporter query surface.
+8. If needed, revert that commit and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
 
-Do not update `lume-os/` blindly, and never hand-edit it outside a reviewed upstream change. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.
+Do not update `lume-os/` blindly. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.

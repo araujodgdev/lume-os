@@ -98,7 +98,7 @@ export default function WorkpiecePicker({
                   onClick={commitRename}
                   disabled={!editing.value.trim()}
                   className="!h-6 !w-6"
-                  aria-label="Salvar nome do gadget"
+                  aria-label="Salvar nome do arquivo"
                 >
                   <Check size={13} />
                 </WorkshopIconButton>

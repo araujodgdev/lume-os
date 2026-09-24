@@ -211,7 +211,7 @@ export default function Connections({ overseer, gadget, chatId, authenticatedApi
                 Conexões
               </h2>
               <p className="mt-1 text-[13px] leading-[18px] font-normal tracking-[-0.25px] text-kumo-subtle">
-                Recursos externos que este gadget pode usar.
+                Recursos externos que este arquivo pode usar.
               </p>
             </div>
             <WorkshopButton
@@ -230,7 +230,7 @@ export default function Connections({ overseer, gadget, chatId, authenticatedApi
           ) : bindings.length === 0 ? (
             <EmptyState
               title="Nenhum recurso conectado"
-              description="Conecte Google Docs, GitHub, Google Sheets e outros serviços para que este gadget use dados externos com segurança."
+              description="Conecte Google Docs, GitHub, Google Sheets e outros serviços para que o agente use dados externos com segurança."
               actionLabel="Conectar recurso"
               onAction={() => setIsNewConnectionModalVisible(true)}
             />
@@ -366,7 +366,7 @@ export default function Connections({ overseer, gadget, chatId, authenticatedApi
                 Gatilhos
               </h2>
               <p className="mt-1 text-[13px] leading-[18px] font-normal tracking-[-0.25px] text-kumo-subtle">
-                Chamadas que deixam os recursos conectados acionarem este gadget quando algo acontece.
+                Chamadas que deixam os recursos conectados acionarem este arquivo quando algo acontece.
               </p>
             </div>
 

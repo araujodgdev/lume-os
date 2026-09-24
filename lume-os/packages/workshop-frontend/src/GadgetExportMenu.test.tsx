@@ -161,7 +161,7 @@ describe('GadgetExportMenu', () => {
     await act(async () => { button('open export menu')?.click() })
     await act(async () => { button('CSV')?.click() })
 
-    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Exportar gadget"]')
+    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Exportar arquivo"]')
     expect(trigger?.disabled).toBe(true)
     expect(trigger?.closest('[data-tooltip]')?.getAttribute('data-tooltip')).toBe('Exportando para CSV')
 
@@ -171,7 +171,7 @@ describe('GadgetExportMenu', () => {
     })
 
     expect(trigger?.disabled).toBe(false)
-    expect(trigger?.closest('[data-tooltip]')?.getAttribute('data-tooltip')).toBe('Exportar gadget')
+    expect(trigger?.closest('[data-tooltip]')?.getAttribute('data-tooltip')).toBe('Exportar arquivo')
   })
 
   it('shows an empty state without hiding or disabling the export button', async () => {
@@ -184,14 +184,14 @@ describe('GadgetExportMenu', () => {
     await act(async () => {
       root.render(<GadgetExportMenu gadget={client} gadgetTitle="Report" />)
     })
-    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Exportar gadget"]')
+    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Exportar arquivo"]')
     expect(trigger).not.toBeNull()
     expect(trigger?.disabled).toBe(false)
 
     await act(async () => { button('open export menu')?.click() })
 
-    expect(container.textContent).toContain('Este gadget não permite exportação.')
-    expect(container.querySelector('[aria-label="Exportar gadget"]')).not.toBeNull()
+    expect(container.textContent).toContain('Este arquivo não permite exportação.')
+    expect(container.querySelector('[aria-label="Exportar arquivo"]')).not.toBeNull()
   })
 
   it('does not render the control without a selected Gadget', async () => {
@@ -199,7 +199,7 @@ describe('GadgetExportMenu', () => {
       root.render(<GadgetExportMenu gadget={null} gadgetTitle="Gadget" />)
     })
 
-    expect(container.querySelector('[aria-label="Exportar gadget"]')).toBeNull()
+    expect(container.querySelector('[aria-label="Exportar arquivo"]')).toBeNull()
   })
 
   it('loads fresh formats on every open and ignores a response after close', async () => {

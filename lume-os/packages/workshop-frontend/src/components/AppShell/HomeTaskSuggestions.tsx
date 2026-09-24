@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import {
-  AppWindow,
   ArrowRight,
-  ChartLineUp,
   FileText,
-  Lightning,
+  MagnifyingGlass,
   Presentation,
+  Scales,
+  Table,
   type Icon,
 } from '@phosphor-icons/react'
 import { MonoLabel } from '../brand/BrandControls'
@@ -25,44 +25,44 @@ type TaskSuggestion = {
 // first move isn't "pick a file type". The formats themselves are in the composer's `+` menu.
 const SUGGESTIONS: TaskSuggestion[] = [
   {
-    id: 'one-on-one',
-    label: 'Preparar uma 1:1',
-    description: 'Um documento com panorama, pontos de atenção e um pedido',
+    id: 'peticao-inicial',
+    label: 'Redigir uma petição inicial',
+    description: 'Um documento com fatos, fundamentos e pedidos',
     icon: FileText,
     prompt:
-      'Crie um documento para preparar minha próxima 1:1 com alguém do meu time: um panorama atual, um enquadramento de feedback, pontos de atenção, pendências da última conversa e um pedido claro.',
+      'Redija uma petição inicial em um documento: endereçamento, qualificação das partes, fatos, fundamentos jurídicos e pedidos, com o valor da causa. Antes, pergunte o tipo de ação, as partes e os fatos principais.',
   },
   {
-    id: 'team-meeting',
-    label: 'Montar a apresentação da reunião',
-    description: 'Slides com andamento, riscos e o que precisa de decisão',
+    id: 'parecer',
+    label: 'Elaborar um parecer',
+    description: 'Consulta, análise da legislação e conclusão fundamentada',
+    icon: Scales,
+    prompt:
+      'Elabore um parecer jurídico em um documento: consulta, análise da legislação e da jurisprudência aplicáveis e conclusão fundamentada. Antes, pergunte qual é a questão e o contexto do cliente.',
+  },
+  {
+    id: 'revisao-contrato',
+    label: 'Revisar um contrato',
+    description: 'Cláusulas de risco, lacunas e sugestões de redação',
+    icon: MagnifyingGlass,
+    prompt:
+      'Revise um contrato que vou colar ou anexar e entregue um documento com as cláusulas de risco, as lacunas, a posição do meu cliente em cada ponto e sugestões de redação. Antes, pergunte qual parte eu represento.',
+  },
+  {
+    id: 'planilha-prazos',
+    label: 'Montar uma planilha de prazos',
+    description: 'Processos, prazos, responsáveis e status',
+    icon: Table,
+    prompt:
+      'Crie uma planilha de controle de prazos processuais com as colunas: processo (nº CNJ), cliente, ato, data de início, prazo em dias úteis, data final, responsável e status. Pergunte se quero já preencher com alguns processos.',
+  },
+  {
+    id: 'apresentacao-cliente',
+    label: 'Apresentar o caso ao cliente',
+    description: 'Slides com cenário, riscos, estratégia e próximos passos',
     icon: Presentation,
     prompt:
-      'Crie uma apresentação para a próxima reunião do time: onde estamos, o que foi entregue, riscos e bloqueios, e as decisões que preciso da equipe. Antes, pergunte no que o time está trabalhando.',
-  },
-  {
-    id: 'insights',
-    label: 'Encontrar insights nos meus dados',
-    description: 'Transformar uma planilha ou CSV em tendências e recomendações',
-    icon: ChartLineUp,
-    prompt:
-      'Transforme um conjunto de dados que vou compartilhar (planilha, CSV ou tabela colada) em uma análise narrativa: principais tendências, anomalias, o que isso significa e recomendações concretas.',
-  },
-  {
-    id: 'workflow',
-    label: 'Automatizar um fluxo',
-    description: 'Acionar um agente quando chegar um novo e-mail',
-    icon: Lightning,
-    prompt:
-      'Crie um fluxo com agente que rode automaticamente quando chegar um novo e-mail: ler a mensagem, decidir o que fazer e agir ou rascunhar uma resposta. Pergunte qual caixa de entrada monitorar e o que ele deve tratar.',
-  },
-  {
-    id: 'app',
-    label: 'Criar uma ferramenta rápida',
-    description: 'Um pequeno app interativo, calculadora ou painel',
-    icon: AppWindow,
-    prompt:
-      'Crie uma pequena ferramenta interativa que eu possa usar aqui mesmo: uma calculadora, um painel ou um explorador. Pergunte o que ela deve fazer e depois crie.',
+      'Crie uma apresentação do caso para o cliente, em linguagem acessível: cenário atual, riscos e chances, estratégia proposta, custos estimados e próximos passos. Antes, pergunte os dados do caso.',
   },
 ]
 

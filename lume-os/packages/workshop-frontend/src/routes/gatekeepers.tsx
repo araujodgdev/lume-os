@@ -404,7 +404,7 @@ function ConnectorsHeroDiagram({
         <button
           type="button"
           className="themed-card-hover-shadow grid h-[52px] w-[52px] place-items-center rounded-2xl border border-kumo-line bg-kumo-base text-kumo-brand transition-[border-color,box-shadow] hover:border-kumo-fill focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2 focus-visible:ring-offset-kumo-base"
-          aria-label="O conector limita o acesso dos gadgets aos recursos conectados"
+          aria-label="O conector limita o acesso do agente aos recursos conectados"
         >
           <ShieldCheck size={21} weight="duotone" />
         </button>

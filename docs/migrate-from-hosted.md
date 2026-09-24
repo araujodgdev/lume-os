@@ -48,8 +48,8 @@ Find your hosted instance name — call it `N` — in the wizard, or read it off
 
 The Gatekeeper suffixes are the hosted flow's choice, not the starter's, so confirm all three
 against the dashboard worker list rather than assuming the pattern. The starter also deploys two
-Workers the hosted flow does not: the example custom Gatekeeper and the Error Reporter. Give those
-new names; nothing depends on them yet.
+Workers the hosted flow does not: the Casos Gatekeeper and the Error Reporter. Give those new names;
+nothing depends on them yet.
 
 ```jsonc
 "workers": {
@@ -58,7 +58,7 @@ new names; nothing depends on them yet.
   "workshop": { "name": "N-backend" },
   "context": { "name": "N-gk-context" },
   "scheduler": { "name": "N-gk-scheduler" },
-  "customGatekeeper": { "name": "N-gk-custom" },
+  "casos": { "name": "N-gk-casos" },
   "errorReporter": { "name": "N-errors" }
 }
 ```

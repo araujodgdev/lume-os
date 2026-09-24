@@ -1,16 +1,13 @@
 import { Link } from '@tanstack/react-router'
-import { Clock, MagnifyingGlass, DotsThreeVertical, ShareNetwork, Trash, Info, Star, Pencil, ArrowRight } from '@phosphor-icons/react'
+import { Clock, MagnifyingGlass, DotsThreeVertical, ShareNetwork, Trash, Info, Star, Pencil } from '@phosphor-icons/react'
 import { useState, useEffect, useRef } from 'react'
 import { DropdownMenu, Dialog, Button, useKumoToastManager } from '@cloudflare/kumo'
 import { RpcStub } from 'capnweb'
 import { useAuthenticatedApi } from '../AuthContext'
-import { GadgetMetadataWithTimestamps, BlueprintPublicInfo, Overseer, AiChatAuthorInfo } from '@gadgets/workshop-shared/api'
+import { GadgetMetadataWithTimestamps, Overseer, AiChatAuthorInfo } from '@gadgets/workshop-shared/api'
 import ShareModal from '../ShareModal'
-import { BindingBadge, getGradient as getBlueprintGradient, uniqueBindingBadges } from './BlueprintCard'
 import { MENU_CONTENT, MENU_ITEM, MENU_ITEM_DANGER } from './menuStyles'
-import { BlueprintPreviewImage } from './BlueprintPreviewImage'
 import DeleteConfirmationDialog from './DeleteConfirmationDialog'
-import LumeMark from './brand/LumeMark'
 
 // Neutral monogram for a workspace — matches the sidebar treatment (no per-item color noise).
 function initials(title: string | undefined): string {
@@ -385,7 +382,10 @@ export default function GadgetList({ showHeader = true }: { showHeader?: boolean
               Nenhum espaço encontrado
             </div>
           ) : (
-            <FeaturedBlueprintsGallery />
+            <div className="text-center py-12 text-kumo-inactive text-sm">
+              Nenhum espaço ainda.{' '}
+              <Link to="/" className="text-kumo-brand underline">Comece pela página inicial.</Link>
+            </div>
           )
         ) : (
           filtered.map((gadget) => (
@@ -473,129 +473,6 @@ export default function GadgetList({ showHeader = true }: { showHeader?: boolean
           currentUser={userInfo}
           authenticatedApi={authenticatedApi}
         />
-      )}
-    </div>
-  )
-}
-
-// ─── featured blueprints gallery (shown when gadget list is empty) ────────────
-
-const MAX_FEATURED_SHOWN = 6
-
-function HomeFeaturedBlueprintCard({
-  blueprint,
-}: {
-  blueprint: BlueprintPublicInfo
-}) {
-  const badges = uniqueBindingBadges(blueprint.metadata.bindings).slice(0, 1)
-
-  return (
-    <div className="themed-card-hover-shadow group relative isolate flex min-h-[190px] flex-col overflow-hidden rounded-2xl border border-kumo-line bg-kumo-base text-left transition-[border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-px hover:border-kumo-fill active:scale-[0.995]">
-      <Link
-        to="/blueprint/$id"
-        params={{ id: blueprint.id }}
-        aria-label={`Abrir o modelo ${blueprint.metadata.title}`}
-        className="absolute inset-0 z-10 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
-      />
-      <div className="pointer-events-none relative z-20 flex flex-1 flex-col p-2.5">
-        <BlueprintPreviewImage
-          blueprintId={blueprint.id}
-          title={blueprint.metadata.title}
-          screenshotUrl={blueprint.screenshotUrl}
-          className="mb-3"
-        />
-        <div className="flex min-w-0 items-start gap-2 px-1 pb-1">
-          <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${getBlueprintGradient(blueprint.id)}`}>
-            <LumeMark size={15} className="text-white/85" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="m-0 truncate text-[13px] leading-[18px] font-semibold tracking-[-0.25px] text-kumo-default">
-              {blueprint.metadata.title}
-            </p>
-            <p className={`mt-0.5 line-clamp-2 min-h-8 text-[12px] leading-4 tracking-[-0.2px] ${blueprint.metadata.description ? 'text-kumo-subtle' : 'text-kumo-inactive italic'}`}>
-              {blueprint.metadata.description || 'Sem descrição'}
-            </p>
-            {badges.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {badges.map((badge) => (
-                  <BindingBadge key={badge.vendorKey ?? badge.type} badge={badge} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function FeaturedBlueprintsGallery() {
-  const { authenticatedApi } = useAuthenticatedApi()
-  const [blueprints, setBlueprints] = useState<BlueprintPublicInfo[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    authenticatedApi
-      .listFeaturedBlueprints()
-      .then((list) => {
-        if (!cancelled) setBlueprints(list)
-      })
-      .catch((err) => {
-        console.error('Failed to load featured blueprints:', err)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [authenticatedApi])
-
-  if (loading) {
-    return (
-      <div className="px-2 py-8">
-        <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-[108px] rounded-xl bg-kumo-base animate-pulse" />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (blueprints.length === 0) {
-    return null
-  }
-
-  const shown = blueprints.slice(0, MAX_FEATURED_SHOWN)
-  const hasMore = blueprints.length > MAX_FEATURED_SHOWN
-
-  return (
-    <div className="py-4 pr-4 sm:pr-6">
-      <div className="mb-5">
-        <h3 className="text-[13px] leading-[18px] font-medium tracking-[-0.25px] text-kumo-default">
-          Comece por um modelo em destaque.
-        </h3>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {shown.map((bp) => (
-          <HomeFeaturedBlueprintCard
-            key={bp.id}
-            blueprint={bp}
-          />
-        ))}
-      </div>
-
-      {hasMore && (
-        <div className="mt-4 text-center">
-          <Link
-            to="/explore"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-kumo-brand hover:text-kumo-brand-hover transition-colors"
-          >
-            Ver todos os modelos
-            <ArrowRight size={12} weight="bold" />
-          </Link>
-        </div>
       )}
     </div>
   )
