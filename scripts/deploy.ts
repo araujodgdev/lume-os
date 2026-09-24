@@ -8,6 +8,7 @@ import { pnpmCommand } from "../lume-os/scripts/pnpm-command.ts";
 import { resolveBinEntry } from "../lume-os/scripts/bin-entry.ts";
 import { AI_GATEWAY_PROVIDERS } from "./deployment-config.ts";
 import type {
+  AccessConfig,
   BaseConfigs,
   BuildCommand,
   DeploymentConfig,
@@ -40,8 +41,6 @@ const requiredPaths = [
   "workers.context.name",
   "workers.scheduler.name",
   "workers.customGatekeeper.name",
-  "access.issuer",
-  "access.audience",
   "access.admins",
   "aiGateway.enabled",
   "errorReporting.enabled",
@@ -61,6 +60,12 @@ const aiGatewayPaths = [
   "aiGateway.providers",
 ];
 
+// Only Cloudflare Access mode reads these; password mode has no identity provider to name.
+const accessModePaths = [
+  "access.issuer",
+  "access.audience",
+];
+
 const errorReportingPaths = [
   "workers.errorReporter.name",
   "errorReporting.environment",
@@ -72,6 +77,11 @@ const resourcePaths = [
   "resources.avatarsKvNamespaceId",
   "resources.blueprintContentBucket",
 ];
+
+/** Whether the deployment uses upstream's built-in password accounts instead of Access. */
+export function isPasswordMode(config: DeploymentConfig): boolean {
+  return config.access?.mode === "password";
+}
 
 function valueAt(object: DeploymentConfig, path: string): unknown {
   return path.split(".").reduce<unknown>(
@@ -162,6 +172,7 @@ function validatePublicBaseUrl(config: DeploymentConfig, route: RouterRoute): vo
 export function validateConfig(config: DeploymentConfig): DeploymentConfig {
   const activePaths = [
     ...requiredPaths,
+    ...(isPasswordMode(config) ? [] : accessModePaths),
     ...(config.aiGateway?.enabled ? aiGatewayPaths : []),
     ...(config.errorReporting?.enabled ? errorReportingPaths : []),
   ];
@@ -248,18 +259,34 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
       "deployment's public origin, which is what the hosted deploy does.");
   }
 
-  const issuer = new URL(config.access.issuer);
-  if (issuer.protocol !== "https:" ||
-      issuer.origin !== config.access.issuer.replace(/\/$/, "")) {
-    throw new Error("Cloudflare Access issuer must be an HTTPS origin only.");
+  const mode = config.access.mode;
+  if (mode !== undefined && mode !== "cloudflare-access" && mode !== "password") {
+    throw new Error('access.mode must be "cloudflare-access" or "password".');
   }
-  if (!config.access.audience.trim() || config.access.audience !== config.access.audience.trim()) {
-    throw new Error("Cloudflare Access audience must not be blank or padded with whitespace.");
-  }
-  if (!Array.isArray(config.access.admins) ||
-      !config.access.admins.every((email) =>
-        typeof email === "string" && /^[^@\s]+@[^@\s]+$/.test(email))) {
-    throw new Error("Every Access administrator must be an email address.");
+  if (isPasswordMode(config)) {
+    // Password-mode admins are upstream usernames (see normalizeUsername in workshop-backend).
+    if (!Array.isArray(config.access.admins) ||
+        !config.access.admins.every((name) =>
+          typeof name === "string" && /^[a-z][a-z0-9_]*$/.test(name))) {
+      throw new Error(
+        "Every password-mode administrator must be a lowercase username: letters, digits, and " +
+        "underscores, starting with a letter.");
+    }
+  } else {
+    const { issuer: issuerValue, audience } = config.access as Required<AccessConfig>;
+    const issuer = new URL(issuerValue);
+    if (issuer.protocol !== "https:" ||
+        issuer.origin !== issuerValue.replace(/\/$/, "")) {
+      throw new Error("Cloudflare Access issuer must be an HTTPS origin only.");
+    }
+    if (!audience.trim() || audience !== audience.trim()) {
+      throw new Error("Cloudflare Access audience must not be blank or padded with whitespace.");
+    }
+    if (!Array.isArray(config.access.admins) ||
+        !config.access.admins.every((email) =>
+          typeof email === "string" && /^[^@\s]+@[^@\s]+$/.test(email))) {
+      throw new Error("Every Access administrator must be an email address.");
+    }
   }
 
   validateAiGateway(config);
@@ -453,8 +480,10 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   setCommon(workshop, config, config.workers.workshop.name);
   workshop.vars = {
     ADMINS: config.access.admins,
-    CF_ACCESS_ISS: config.access.issuer.replace(/\/$/, ""),
-    CF_ACCESS_AUD: config.access.audience,
+    ...(isPasswordMode(config) ? {} : {
+      CF_ACCESS_ISS: config.access.issuer!.replace(/\/$/, ""),
+      CF_ACCESS_AUD: config.access.audience!,
+    }),
     // Upstream builds OAuth redirect URIs and other absolute links from this. The backend has no
     // public route of its own, so the router's origin is the only correct value.
     PUBLIC_BASE_URL: origin,
@@ -608,7 +637,9 @@ export function buildCommands(config: DeploymentConfig): BuildCommand[] {
     ...(config.errorReporting.enabled ? [{ args: ownBuild("error-reporter") }] : []),
     // Access mode is a build-time constant in the frontend bundle (`src/useAuth.ts`), so it is set
     // here rather than inherited: a bundle built under a different value is wrong, not just stale.
-    { args: submoduleBuild("@gadgets/workshop-frontend"), env: { VITE_CF_ACCESS_MODE: "true" } },
+    { args: submoduleBuild("@gadgets/workshop-frontend"), env: {
+      VITE_CF_ACCESS_MODE: isPasswordMode(config) ? "false" : "true",
+    } },
     { args: submoduleBuild("@gadgets/router") },
     { args: submoduleBuild("@gadgets/workshop-backend") },
   ];

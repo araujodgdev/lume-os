@@ -80,7 +80,7 @@ Lume OS supports three ways to sign users in. This starter deploys Cloudflare Ac
 | Method | How it works | In this starter |
 | --- | --- | --- |
 | Cloudflare Access | Access verifies identity before the request reaches the Worker, and the Workshop trusts the signed Access JWT. The password login and signup pages are disabled. | Deployed by default |
-| Built-in password accounts | Lume OS serves its own username and password login plus signup. This is the upstream default. | Requires deploy script changes |
+| Built-in password accounts | Lume OS serves its own username and password login plus signup. This is the upstream default. | Set `access.mode` to `"password"` |
 | Auth Gatekeepers | Gatekeepers that advertise `providesAuth` add "Continue with ..." buttons, alongside or instead of password login. | Requires deploy script changes |
 
 Access mode is the default here because unauthenticated requests never reach application code. `scripts/deploy.ts` implements it by setting `CF_ACCESS_ISS` and `CF_ACCESS_AUD` on the Workshop and building the frontend with `VITE_CF_ACCESS_MODE=true`.
@@ -88,6 +88,10 @@ Access mode is the default here because unauthenticated requests never reach app
 To run another method, drop those two variables and the build flag, then set upstream's `AUTH_GATEKEEPERS` allowlist for provider sign-in. `DISABLE_PASSWORD_AUTH=true` makes a deployment provider-only. Upstream ignores it unless at least one auth Gatekeeper is allowlisted, so a deployment cannot lock everyone out. The wrapper's validation assumes Access mode, so review the upstream Workshop backend and frontend documentation before changing it.
 
 The `admins` list gates `/admin` in every method.
+
+#### Built-in password accounts
+
+Set `"access": { "mode": "password", "admins": ["<username>"] }`. The deploy then omits `CF_ACCESS_ISS`/`CF_ACCESS_AUD` and builds the frontend with `VITE_CF_ACCESS_MODE=false`. Admins are Lume OS usernames (lowercase letters, digits, and underscores), not emails. Nothing sits in front of the Worker, so anyone who can reach the URL can sign up: create the admin account right after deploying, then turn signups off in `/admin` if the deployment should stay closed.
 
 #### Cloudflare Access
 

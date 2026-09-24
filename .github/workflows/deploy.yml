@@ -1,0 +1,53 @@
+# Deploys every Worker to Cloudflare whenever main changes, using the same `pnpm run deploy` a
+# maintainer runs locally. Needs one repository secret: CLOUDFLARE_API_TOKEN (Workers Scripts,
+# Workers KV Storage, Workers R2 Storage, Workers AI, and Browser Rendering edit on the account in
+# deployment.jsonc). The account itself comes from deployment.jsonc, which pins every Worker to it.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, and never cancel one halfway: the Workers deploy in dependency order, so an
+# interrupted run can leave the router bound to a Workshop from a different commit.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+
+      # Reads the pnpm version from packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            lume-os/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --dir lume-os install --frozen-lockfile
+
+      - name: Test deploy scripts
+        run: |
+          node --test 'scripts/**/*.test.ts'
+          pnpm run types:scripts
+
+      - name: Deploy
+        run: pnpm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
