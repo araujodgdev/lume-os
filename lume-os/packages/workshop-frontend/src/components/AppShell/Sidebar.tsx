@@ -3,7 +3,6 @@ import {
   Blueprint,
   BookOpen,
   Compass,
-  Hexagon,
   House,
   MagnifyingGlass,
   SidebarSimple,
@@ -21,6 +20,7 @@ import {
   SidebarWorkspacesLists,
 } from './SidebarWorkspaces'
 import SidebarUtilityStrip from './SidebarUtilityStrip'
+import LumeMark from '../brand/LumeMark'
 
 /**
  * The persistent left rail. Three pinned regions sandwich a single scrolling region of lists, so
@@ -67,7 +67,7 @@ export default function Sidebar({
       >
         <Link to="/" aria-label={siteName} className="flex min-w-0 items-center gap-2">
           <SiteLogo size={20} className="shrink-0">
-            <Hexagon size={20} weight="bold" className="text-kumo-brand shrink-0" />
+            <LumeMark size={20} className="text-kumo-default shrink-0" />
           </SiteLogo>
           {!collapsed && (
             <span className="truncate text-[14px] leading-5 font-semibold tracking-[-0.25px] text-kumo-default">

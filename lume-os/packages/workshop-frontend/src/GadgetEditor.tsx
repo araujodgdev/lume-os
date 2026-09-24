@@ -6,7 +6,6 @@ import {
   Pencil,
   Check,
   X,
-  Hexagon,
   Blueprint,
   Trash,
   ArrowsOutSimple,
@@ -56,6 +55,7 @@ import WorkspaceOpenErrorPage from './components/WorkspaceOpenErrorPage'
 import { useWorkspaceOpen } from './useWorkspaceOpen'
 import { reportIssue } from './errorReporting'
 import GadgetExportMenu from './GadgetExportMenu'
+import LumeMark from './components/brand/LumeMark'
 
 const NO_GADGETS: ReadonlySet<WorkpieceId> = new Set()
 
@@ -1340,7 +1340,7 @@ export default function GadgetEditor() {
             className="flex-shrink-0 hover:opacity-80 transition-opacity"
           >
             <SiteLogo size={22}>
-              <Hexagon size={22} className="text-kumo-brand" weight="bold" />
+              <LumeMark size={22} className="text-kumo-default" />
             </SiteLogo>
           </Link>
 

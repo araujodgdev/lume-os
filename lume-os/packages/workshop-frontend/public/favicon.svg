@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lume OS">
-  <path
-    d="M32 8 52.8 20v24L32 56 11.2 44V20L32 8Z"
-    fill="none"
-    stroke="#ff4801"
-    stroke-width="7"
-    stroke-linejoin="round"
-  />
+  <rect width="64" height="64" rx="8" fill="#1c1c1c"/>
+  <g transform="translate(12 12) scale(1.6667)">
+    <circle cx="12" cy="12" r="9.25" stroke="#fff" stroke-width="2.5" fill="none"/>
+    <path d="M12 5.5a6.5 6.5 0 0 0 0 13Z" fill="#fff"/>
+  </g>
 </svg>

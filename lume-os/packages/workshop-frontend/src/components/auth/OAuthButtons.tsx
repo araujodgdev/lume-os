@@ -60,7 +60,7 @@ export default function OAuthButtons({ rpcStub, vendors, onSuccess }: OAuthButto
       if (!popup) {
         try { (attempt as unknown as Disposable)[Symbol.dispose]() } catch { /* already disposed */ }
         loginRpcRef.current = null
-        throw new Error('Pop-up blocked. Please allow pop-ups and try again.')
+        throw new Error('Pop-up bloqueado. Permita pop-ups e tente de novo.')
       }
       // Resolve when the gatekeeper finishes, or reject if the user closes the pop-up first.
       const token = await new Promise<string>((resolve, reject) => {
@@ -76,11 +76,11 @@ export default function OAuthButtons({ rpcStub, vendors, onSuccess }: OAuthButto
           fn()
         }
         pollRef.current = window.setInterval(() => {
-          if (popup.closed) finish(() => reject(new Error('Sign-in was cancelled.')))
+          if (popup.closed) finish(() => reject(new Error('O login foi cancelado.')))
         }, 500)
         attempt.wait()
           .then(t => finish(() => resolve(t)))
-          .catch(e => finish(() => reject(e instanceof Error ? e : new Error('Could not sign in'))))
+          .catch(e => finish(() => reject(e instanceof Error ? e : new Error('Não foi possível entrar'))))
       })
       if (!mountedRef.current) return  // user navigated away mid-flow; drop the result
       localStorage.setItem('authToken', token)
@@ -88,7 +88,7 @@ export default function OAuthButtons({ rpcStub, vendors, onSuccess }: OAuthButto
       else window.location.reload()
     } catch (err) {
       if (!mountedRef.current) return
-      setError(err instanceof Error ? err.message : 'Could not sign in')
+      setError(err instanceof Error ? err.message : 'Não foi possível entrar')
       setPending(null)
     }
   }
@@ -113,7 +113,7 @@ export default function OAuthButtons({ rpcStub, vendors, onSuccess }: OAuthButto
               style={{ height: 18, width: 'auto' }}
             />
           )}
-          Continue with {vendor.displayName}
+          Continuar com {vendor.displayName}
         </Button>
       ))}
     </div>

@@ -19,7 +19,6 @@ import {
   UsersThree,
   Key,
   Plugs,
-  Hexagon,
 } from '@phosphor-icons/react'
 import AddModelModal from './AddModelModal'
 import { persistSelectedModel } from './modelSelection'
@@ -32,6 +31,7 @@ import { useSiteName } from './ServerConfigContext'
 import SiteLogo from './components/SiteLogo'
 import { useDocumentTitle } from './useDocumentTitle'
 import { AccountsSubscriberAdapter } from './accountsSubscriber'
+import LumeMark from './components/brand/LumeMark'
 
 // ─── constants ──────────────────────────────────────────────────────────────────
 
@@ -337,7 +337,7 @@ export default function OnboardingWizard({
           }`}
         >
           <SiteLogo size={22}>
-            <Hexagon size={22} className="text-kumo-brand" weight="bold" />
+            <LumeMark size={22} className="text-kumo-default" />
           </SiteLogo>
           <span className="text-base font-semibold tracking-tight text-kumo-default">
             {siteName}

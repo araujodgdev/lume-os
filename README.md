@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/lumeOS.svg" alt="Lume OS" width="480">
+  <img src="docs/assets/lumeOS.svg" alt="Lume OS" width="320">
 </p>
 
 <h1 align="center">Customized for your Company</h1>

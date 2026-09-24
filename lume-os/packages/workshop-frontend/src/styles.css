@@ -5,8 +5,10 @@
 
 @theme {
   /* ===== FONTS ===== */
-  --font-sans: "FT Kunst Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Roboto", "Helvetica Neue", sans-serif;
+  /* Inter Tight (self-hosted via @fontsource-variable) stands in for the brand reference's
+     Neue Montreal: same widths and rhythm, and freely licensed. */
+  --font-sans: "Inter Tight Variable", "Inter Tight", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
   --font-mono: "Apercu Mono Pro", "SF Mono", Menlo, Monaco, Consolas, monospace;
 
   /* ===== TEXT SIZES (restore Tailwind defaults, overriding Kumo's 12/13/14/16px) ===== */
@@ -73,6 +75,20 @@
   --text-color-kumo-success: oklch(72.3% 0.219 149.579);
   --text-color-kumo-danger: oklch(63.7% 0.237 25.331);
   --text-color-kumo-warning: oklch(47.6% 0.114 61.907);
+
+  /* ===== LUME OS IDENTITY =====
+     Fixed brand palette (does not follow light/dark mode): graphite surfaces, hairline greys, warm
+     paper tones for light sections, and a single lime accent reserved for arrow affordances. */
+  --color-lume-ink: #1c1c1c;
+  --color-lume-chip: #303030;
+  --color-lume-graphite: #494949;
+  --color-lume-line: #3d3d3d;
+  --color-lume-muted: #7a7a7a;
+  --color-lume-lime: #dbfac4;
+  --color-lume-paper: #fffbf7;
+  --color-lume-sand: #f7f3ef;
+  --color-lume-stone: #f2eeea;
+  --color-lume-rule: #d6d2cf;
 
   /* ===== CUSTOM BRAND TOKENS (for direct use alongside Kumo tokens) ===== */
   --color-accent-100: #ff4801;

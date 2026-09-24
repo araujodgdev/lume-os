@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.9.2",
+    "@fontsource-variable/inter-tight": "^5.3.0",
     "@gadgets/error-reporting": "workspace:*",
     "@gadgets/workshop-shared": "workspace:*",
     "@monaco-editor/react": "^4.7.0",
