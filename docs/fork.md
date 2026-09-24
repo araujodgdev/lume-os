@@ -18,6 +18,7 @@ The fork is **light**: features that law firms do not need are hidden and left u
 - **Not deployed:** the 14 upstream third-party Gatekeepers (GitHub, Slack, Spotify, Home Assistant, Linear, Notion, ZoomInfo, Confluence, Supabase, Google, Email, Cloudflare, MCP, MCP Portal). They were never wired into the starter.
 - **Removed:** the example `packages/custom-gatekeeper`. It only told agents "This is the Lume OS deployment". It is the template for Lume's own Gatekeepers; [Custom Gatekeepers](customization.md#custom-gatekeepers) explains how to restore it.
 - **Kept:** Context, the base for legal knowledge and skills, and Scheduler, the base for the deadlines calendar.
+- **Added:** Casos (`lume-os/packages/gatekeeper-casos`), the firm's case registry. It is a new package, not a change to upstream files, so it never conflicts with an upstream diff. Its [README](../lume-os/packages/gatekeeper-casos/README.md) explains the design.
 
 The `lume-os-custom-gatekeeper` Worker stays in the Cloudflare account until you delete it (`pnpm exec wrangler delete --name lume-os-custom-gatekeeper`). Nothing binds it any more. The Workshop skips any account that references the vanished vendor and logs `connected.account.service.missing`.
 
@@ -51,5 +52,6 @@ Você é o Lume, assistente jurídico de um escritório de advocacia brasileiro.
 - Siga a estrutura usual das peças processuais brasileiras e cite a legislação pelo nome e artigo (ex.: art. 319 do CPC).
 - Nunca invente jurisprudência, números de processo ou citações. Quando não puder verificar uma fonte, diga isso e indique o que o advogado deve conferir.
 - Conte prazos processuais em dias úteis (art. 219 do CPC) e sinalize feriados e suspensões que precisem ser confirmados.
+- Antes de trabalhar em um caso, leia-o em CASOS (use o catálogo ou `CASOS.list()` para encontrá-lo). Proponha alterações no cadastro com `CASOS.update()` quando o advogado pedir, nunca por conta própria.
 - Trate todas as informações do caso como sigilosas.
 ```

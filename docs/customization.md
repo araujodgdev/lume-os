@@ -40,7 +40,7 @@ Secrets are never valid values in this file. Install them interactively with Wra
 
 ### Workers and routing
 
-The deployment is five Workers. Keep their names unique: service bindings use these names, so update and deploy them together.
+The deployment is six Workers. Keep their names unique: service bindings use these names, so update and deploy them together.
 
 | Worker | Role |
 | --- | --- |
@@ -48,11 +48,12 @@ The deployment is five Workers. Keep their names unique: service bindings use th
 | `workshop` | The Lume OS backend, holding all user data in Durable Objects. |
 | `context` | The Context Gatekeeper. |
 | `scheduler` | The Scheduler Gatekeeper, which gives agents scheduled and recurring work. |
+| `casos` | The Casos Gatekeeper: the firm's case registry, its page, and the agent's `CASOS` binding. See its [README](../lume-os/packages/gatekeeper-casos/README.md). |
 | `errorReporter` | The private explicit-issue destination. |
 
 Context and Scheduler are *ambient*: upstream's release marks both `PREINSTALL`, so the hosted flow installs them on every instance and this starter deploys them for the same reason. Neither takes configuration beyond its name — the Scheduler takes none at all.
 
-Only the router takes a route; the other four are reachable only over service bindings, and the deploy turns off `workers.dev` and [Preview URLs](https://developers.cloudflare.com/workers/configuration/previews/) on all five. That keeps the router the single Access-protected way in.
+Only the router takes a route; the other five are reachable only over service bindings, and the deploy turns off `workers.dev` and [Preview URLs](https://developers.cloudflare.com/workers/configuration/previews/) on all six. That keeps the router the single Access-protected way in.
 
 For production, set a [Custom Domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) on it:
 

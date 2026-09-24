@@ -46,7 +46,7 @@ This repository adds deployment controls around Lume OS, a pinned copy of its [o
 
 <img src="docs/assets/architecture.svg" alt="Lume OS deployment architecture: users reach one public route, owned by the router Worker, which serves the frontend and proxies /api to the Workshop backend and /gatekeeper/&lt;name&gt; to the matching Gatekeeper. Behind it is the pinned Lume OS release, holding the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers. Service bindings connect it to the Workers and resources this repository owns: AI Gateway with no API token, custom Gatekeepers, the Error Reporter, and KV and R2 storage.">
 
-The deployment is five Workers. A **router** owns the public route and serves the frontend, proxying `/api` to the Workshop backend and `/gatekeeper/<name>` to whichever Gatekeeper the binding name matches; the Workshop, the Context and Scheduler Gatekeepers, and the Error Reporter sit behind it with no route of their own, reachable only over service bindings.
+The deployment is six Workers. A **router** owns the public route and serves the frontend, proxying `/api` to the Workshop backend and `/gatekeeper/<name>` to whichever Gatekeeper the binding name matches; the Workshop, the Context, Scheduler and Casos Gatekeepers, and the Error Reporter sit behind it with no route of their own, reachable only over service bindings.
 
 The deploy command derives temporary Wrangler files from upstream base configs, builds the frontend in Cloudflare Access mode, deploys the private Error Reporter, the Gatekeepers and the Workshop before the router that binds them, and removes generated files even on failure. Secrets never enter tracked configuration.
 
@@ -101,7 +101,7 @@ Backend error reporting is enabled without a vendor account. Explicit upstream i
 ### 4. Verify the deployment
 
 - Open the router's hostname and confirm Access signs in with the expected identity, and that it is the only public route into the deployment.
-- Open `/admin`, confirm the email is an administrator, and set the Context and Scheduler Gatekeepers to disabled, optional, or enabled.
+- Open `/admin`, confirm the email is an administrator, and set the Context, Scheduler and Casos Gatekeepers to disabled, optional, or enabled. Set Casos to enabled so every lawyer gets the case registry.
 - If Context Artifacts is enabled, create a Git-backed collection and confirm its repository can be populated and refreshed.
 - Open the Error Reporter Worker's [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) and verify its structured `error_report` query surface.
 - Ask an agent to schedule something a few minutes out, and confirm it runs — that exercises the Scheduler Gatekeeper end to end.

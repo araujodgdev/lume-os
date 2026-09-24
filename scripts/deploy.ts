@@ -25,6 +25,7 @@ const packageDirs = {
   workshop: "lume-os/packages/workshop-backend",
   context: "lume-os/packages/gatekeeper-context",
   scheduler: "lume-os/packages/gatekeeper-scheduler",
+  casos: "lume-os/packages/gatekeeper-casos",
   errorReporter: "packages/error-reporter",
 } as const;
 const generatedPaths = Object.fromEntries(
@@ -39,6 +40,7 @@ const requiredPaths = [
   "workers.workshop.name",
   "workers.context.name",
   "workers.scheduler.name",
+  "workers.casos.name",
   "access.admins",
   "aiGateway.enabled",
   "errorReporting.enabled",
@@ -224,7 +226,7 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
     .map(([, worker]) => worker.name);
   if (new Set(workerNames).size !== workerNames.length) {
     throw new Error(
-      "Router, Workshop, Context, Scheduler, and error reporter names must be unique.");
+      "Router, Workshop, Context, Scheduler, Casos, and error reporter names must be unique.");
   }
   if (!workerNames.every((name) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(name))) {
     throw new Error("Worker names must use lowercase letters, numbers, and hyphens.");
@@ -457,6 +459,7 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   const workshop = structuredClone(bases.workshop);
   const context = structuredClone(bases.context);
   const scheduler = structuredClone(bases.scheduler);
+  const casos = structuredClone(bases.casos);
   const errorReporter = config.errorReporting.enabled
     ? structuredClone(bases.errorReporter)
     : undefined;
@@ -469,6 +472,7 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
     // vendor-RPC bindings. The binding name is what picks the /gatekeeper/<name> path.
     { binding: "GATEKEEPER_CONTEXT", service: config.workers.context.name },
     { binding: "GATEKEEPER_SCHEDULER", service: config.workers.scheduler.name },
+    { binding: "GATEKEEPER_CASOS", service: config.workers.casos.name },
   ];
 
   setCommon(workshop, config, config.workers.workshop.name);
@@ -531,6 +535,14 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       service: config.workers.scheduler.name,
       entrypoint: "GatekeeperVendor",
     },
+    // The firm's case registry is named by the same boundary as Context data, so both follow a
+    // pinned `context.sharingDomain` and neither hides its data when the public origin changes.
+    {
+      binding: "GATEKEEPER_CASOS",
+      service: config.workers.casos.name,
+      entrypoint: "GatekeeperVendor",
+      props: { sharingDomain: config.context.sharingDomain ?? origin },
+    },
   ];
   workshop.kv_namespaces = [
     { binding: "BLUEPRINTS", ...(config.resources.blueprintsKvNamespaceId
@@ -564,12 +576,15 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   // here without adding a configuration surface for it.
   setCommon(scheduler, config, config.workers.scheduler.name);
 
+  // Casos stores everything in its own Durable Objects, so it needs nothing beyond the common block.
+  setCommon(casos, config, config.workers.casos.name);
+
   if (errorReporter) {
     setCommon(errorReporter, config, config.workers.errorReporter!.name);
   }
 
   return {
-    router, workshop, context, scheduler,
+    router, workshop, context, scheduler, casos,
     ...(errorReporter && { errorReporter }),
   };
 }
@@ -616,6 +631,9 @@ export function buildCommands(config: DeploymentConfig): BuildCommand[] {
     // The Scheduler's `build` nests the same cached `vp run build:app`, so it needs the same pair.
     { args: submoduleBuild("@gadgets/gatekeeper-scheduler", "build:app") },
     { args: submoduleBuild("@gadgets/gatekeeper-scheduler") },
+    // Casos follows the Scheduler's layout, so the same pair.
+    { args: submoduleBuild("@gadgets/gatekeeper-casos", "build:app") },
+    { args: submoduleBuild("@gadgets/gatekeeper-casos") },
     ...(config.errorReporting.enabled ? [{ args: ownBuild("error-reporter") }] : []),
     // Access mode is a build-time constant in the frontend bundle (`src/useAuth.ts`), so it is set
     // here rather than inherited: a bundle built under a different value is wrong, not just stale.
@@ -732,6 +750,7 @@ async function main(): Promise<void> {
     workshop: await readJsonc(join(root, packageDirs.workshop, "wrangler.jsonc")),
     context: await readJsonc(join(root, packageDirs.context, "wrangler.jsonc")),
     scheduler: await readJsonc(join(root, packageDirs.scheduler, "wrangler.jsonc")),
+    casos: await readJsonc(join(root, packageDirs.casos, "wrangler.jsonc")),
     errorReporter: await readJsonc(join(root, packageDirs.errorReporter, "wrangler.jsonc")),
   });
   reportAiGateway(config);
@@ -751,6 +770,7 @@ async function main(): Promise<void> {
     }
     deployWorker(packageDirs.context, deployArgs);
     deployWorker(packageDirs.scheduler, deployArgs);
+    deployWorker(packageDirs.casos, deployArgs);
     deployWorker(packageDirs.workshop, deployArgs);
     // Last: it binds every one of the above.
     deployWorker(packageDirs.router, deployArgs);

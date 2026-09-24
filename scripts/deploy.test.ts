@@ -18,6 +18,7 @@ const validConfig: DeploymentConfig = {
     workshop: { name: "acme-lume-os-backend" },
     context: { name: "acme-lume-os-context" },
     scheduler: { name: "acme-lume-os-scheduler" },
+    casos: { name: "acme-lume-os-casos" },
     errorReporter: { name: "acme-lume-os-errors" },
   },
   access: {
@@ -71,6 +72,7 @@ async function baseConfigs(): Promise<BaseConfigs> {
     workshop: await baseConfig("../lume-os/packages/workshop-backend/wrangler.jsonc"),
     context: await baseConfig("../lume-os/packages/gatekeeper-context/wrangler.jsonc"),
     scheduler: await baseConfig("../lume-os/packages/gatekeeper-scheduler/wrangler.jsonc"),
+    casos: await baseConfig("../lume-os/packages/gatekeeper-casos/wrangler.jsonc"),
     errorReporter: await baseConfig("../packages/error-reporter/wrangler.jsonc"),
   };
 }
@@ -217,6 +219,12 @@ test("generates Access-mode Workshop and Context configs", async () => {
       service: "acme-lume-os-scheduler",
       entrypoint: "GatekeeperVendor",
     },
+    {
+      binding: "GATEKEEPER_CASOS",
+      service: "acme-lume-os-casos",
+      entrypoint: "GatekeeperVendor",
+      props: { sharingDomain: "https://os.example.com" },
+    },
   ]);
   assert.deepEqual(generated.workshop.kv_namespaces, [
     { binding: "BLUEPRINTS", id: "blueprints-kv-id" },
@@ -248,12 +256,13 @@ test("gives the router the public route, the frontend, and every service binding
   assert.equal(generated.router.name, "acme-lume-os");
   assert.equal(generated.router.workers_dev, false);
   assert.deepEqual(generated.router.routes, [{ pattern: "os.example.com", custom_domain: true }]);
-  // No entrypoint on any of the three: the router forwards whole HTTP requests rather than making
+  // No entrypoint on any of them: the router forwards whole HTTP requests rather than making
   // vendor RPC calls, and the binding name is what selects the /gatekeeper/<name> path.
   assert.deepEqual(generated.router.services, [
     { binding: "WORKSHOP_BACKEND", service: "acme-lume-os-backend" },
     { binding: "GATEKEEPER_CONTEXT", service: "acme-lume-os-context" },
     { binding: "GATEKEEPER_SCHEDULER", service: "acme-lume-os-scheduler" },
+    { binding: "GATEKEEPER_CASOS", service: "acme-lume-os-casos" },
   ]);
   // Inherited untouched: the base config already carries the ASSETS binding, the SPA fallback, and
   // the /gatekeeper/* prefix an OAuth Gatekeeper redirect needs.
@@ -300,6 +309,27 @@ test("deploys the ambient Scheduler Gatekeeper the hosted flow preinstalls", asy
   const builds = buildCommands(validConfig)
     .map(({ args }) => args)
     .filter((args) => args.includes("@gadgets/gatekeeper-scheduler"));
+  assert.deepEqual(builds.map((args) => args.at(-1)), ["build:app", "build"]);
+});
+
+test("deploys the Casos Gatekeeper scoped like Context, with its migrations intact", async () => {
+  const bases = await baseConfigs();
+  const generated = generateConfigs(
+    { ...validConfig, context: { ...validConfig.context, sharingDomain: "acme" } }, bases);
+
+  assert.equal(generated.casos.name, "acme-lume-os-casos");
+  // A pinned Context boundary pins the case registry too, so both survive an origin change.
+  assert.deepEqual(
+    generated.workshop.services!.find((service) => service.binding === "GATEKEEPER_CASOS")?.props,
+    { sharingDomain: "acme" });
+  // The firm's cases live in these Durable Objects.
+  assert.deepEqual(generated.casos.migrations, bases.casos.migrations);
+  assert.ok(generated.casos.migrations!.length > 0, "casos lost its DO migrations");
+  assert.equal(generated.casos.vars, undefined);
+
+  const builds = buildCommands(validConfig)
+    .map(({ args }) => args)
+    .filter((args) => args.includes("@gadgets/gatekeeper-casos"));
   assert.deepEqual(builds.map((args) => args.at(-1)), ["build:app", "build"]);
 });
 

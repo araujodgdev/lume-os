@@ -31,6 +31,10 @@
     // The Scheduler Gatekeeper, which gives agents scheduled and recurring work. Ambient like
     // the Context Gatekeeper
     "scheduler": { "name": "lume-os-scheduler" },
+
+    // The Casos Gatekeeper: the firm's case registry, its page at /gatekeepers/casos, and the
+    // agent's CASOS binding. Scoped by the same boundary as Context data (context.sharingDomain).
+    "casos": { "name": "lume-os-casos" },
     "errorReporter": { "name": "lume-os-error-reporter" }
   },
 
