@@ -41,7 +41,6 @@ Inspect the deploy script rather than assuming its validation, generated paths, 
 Expected baseline commands are:
 
 ```sh
-git submodule update --init
 pnpm install
 pnpm --dir cloudflare-os install
 pnpm exec wrangler login

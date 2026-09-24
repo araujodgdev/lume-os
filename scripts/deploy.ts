@@ -678,9 +678,9 @@ function deployWorker(dir: string, extraArgs: string[]): void {
   }
 }
 
-function requireSubmodule(): void {
+function requireUpstream(): void {
   if (!existsSync(join(root, "cloudflare-os/package.json"))) {
-    throw new Error("CloudflareOS submodule is not initialized. Run git submodule update --init.");
+    throw new Error("cloudflare-os/package.json is missing. The vendored Cloudflare OS source is incomplete.");
   }
 }
 
@@ -712,7 +712,7 @@ function reportAiGateway(config: DeploymentConfig): void {
 }
 
 async function main(): Promise<void> {
-  requireSubmodule();
+  requireUpstream();
   const config = await readDeployment(join(root, "deployment.jsonc"));
   const generated = generateConfigs(config, {
     router: await readJsonc(join(root, packageDirs.router, "wrangler.jsonc")),

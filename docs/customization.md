@@ -202,16 +202,27 @@ Read the [package guide](../packages/custom-gatekeeper/README.md) and upstream [
 
 ## Code extensions
 
-Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) over patches inside the submodule. Modify upstream only when a Worker boundary cannot express the behavior, and keep the change as a reviewable upstream commit or fork rather than a generated overlay.
+Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) over patches inside `cloudflare-os/`. Modify upstream only when a Worker boundary cannot express the behavior, and keep the change as a reviewable upstream commit or fork rather than a generated overlay.
 
 ## Upgrade
 
-1. Record the current `cloudflare-os` gitlink for rollback.
-2. Update the submodule to the intended upstream commit.
+Cloudflare OS is vendored: `cloudflare-os/` holds a plain copy of an upstream commit, recorded in `.cloudflare-os-upstream`. There is no submodule.
+
+1. Note the commit in `.cloudflare-os-upstream` for rollback.
+2. Replace `cloudflare-os/` with the intended upstream commit and write its SHA to `.cloudflare-os-upstream`, both in one commit:
+
+   ```sh
+   SHA=<upstream commit>
+   git rm -rq cloudflare-os && rm -rf cloudflare-os && mkdir cloudflare-os
+   curl -sSL "https://github.com/cloudflare/cloudflare-os/archive/$SHA.tar.gz" | tar xz --strip-components=1 -C cloudflare-os
+   echo "$SHA" > .cloudflare-os-upstream
+   git add cloudflare-os .cloudflare-os-upstream
+   ```
+
 3. Review Workshop and Context Wrangler base-config changes and Gatekeeper contracts.
-4. Diff `cloudflare-os/pnpm-workspace.yaml`'s `catalog:` against this repository's and re-sync it. Two submodule packages are members of this workspace and resolve `catalog:` here, so a missing entry fails the install and a *stale* one silently gives the tree two copies of `capnweb` — a failure that only appears once the two installs are separate, as they are in CI.
+4. Diff `cloudflare-os/pnpm-workspace.yaml`'s `catalog:` against this repository's and re-sync it. Two `cloudflare-os` packages are members of this workspace and resolve `catalog:` here, so a missing entry fails the install and a *stale* one silently gives the tree two copies of `capnweb` — a failure that only appears once the two installs are separate, as they are in CI.
 5. Run `pnpm install`, `pnpm --dir cloudflare-os install`, `pnpm lint`, and `pnpm check`.
 6. Deploy and verify Access, administrator access, storage, configured AI, Context, custom observations, and the Error Reporter query surface.
-7. If needed, restore the previous gitlink and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
+7. If needed, revert that commit and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
 
-Do not update the submodule blindly. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.
+Do not update `cloudflare-os/` blindly, and never hand-edit it outside a reviewed upstream change. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.
