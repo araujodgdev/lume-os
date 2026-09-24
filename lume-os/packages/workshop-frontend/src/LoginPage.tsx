@@ -42,7 +42,7 @@ function HeaderIdentity() {
   const serverConfig = useServerConfig()
   const siteName = useSiteName()
   const customised = Boolean(serverConfig?.siteLogo?.url) || siteName !== DEFAULT_SITE_NAME
-  if (!customised) return <LumeLogo size={16} />
+  if (!customised) return <LumeLogo size={18} />
   return (
     <span className="flex min-w-0 items-center gap-2">
       <SiteLogo size={18} className="shrink-0">
