@@ -8,7 +8,11 @@ import {
   precisaDeOcr,
   TAMANHO_PARTE,
   validateArquivo,
+  validateConfiguracoes,
+  PJE_LIMITE_PADRAO_MB,
   type Achado,
+  type ConfiguracoesEscritorio,
+  type InfoModelo,
   type DocumentoCofre,
   type JanelaTexto,
   type StatusDocumento,
@@ -16,7 +20,16 @@ import {
   type UploadIniciado,
 } from "./tipos.js";
 
-export type { Achado, DocumentoCofre, JanelaTexto, StatusDocumento, UploadIniciado } from "./tipos.js";
+export type {
+  Achado,
+  ConfiguracoesEscritorio,
+  DocumentoCofre,
+  InfoModelo,
+  JanelaTexto,
+  StatusDocumento,
+  UploadIniciado,
+} from "./tipos.js";
+import { inspecionarModelo, MAX_MODELO } from "../pecas/modelo.js";
 
 /** Pages Claude transcribes per request; a batch that overflows the output budget is halved. */
 const PAGINAS_POR_LOTE = 10;
@@ -98,6 +111,10 @@ export class DocumentVault extends DurableObject<Cloudflare.Env> {
         paginas INTEGER NOT NULL,
         PRIMARY KEY (doc_id, primeira_pagina)
       );
+      CREATE TABLE IF NOT EXISTS configuracoes (
+        chave TEXT PRIMARY KEY,
+        valor TEXT NOT NULL
+      );
       CREATE VIRTUAL TABLE IF NOT EXISTS trechos USING fts5(
         doc_id UNINDEXED,
         caso_id UNINDEXED,
@@ -173,6 +190,88 @@ export class DocumentVault extends DurableObject<Cloudflare.Env> {
   /** Abandons an upload in progress. */
   async cancelarUpload(uploadId: string): Promise<void> {
     await this.excluir(uploadId);
+  }
+
+  /**
+   * Stores a file generated for a case (a piece) as a new document and queues it for reading, as
+   * if it had been uploaded.
+   */
+  async importarArquivo(casoId: string, nome: string, bytes: Uint8Array): Promise<DocumentoCofre> {
+    const valido = validateArquivo({ nome, tamanho: bytes.byteLength });
+    confereAssinatura(valido, bytes.subarray(0, 16));
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    await this.env.COFRE.put(this.#chave(casoId, id, "original"), bytes, {
+      httpMetadata: { contentType: valido.mime },
+    });
+    this.ctx.storage.sql.exec(
+      `INSERT INTO documentos (id, caso_id, nome, mime, tipo, tamanho, status, criado_em, atualizado_em)
+       VALUES (?, ?, ?, ?, ?, ?, 'processando', ?, ?)`,
+      id, casoId, valido.nome, valido.mime, valido.tipo, valido.tamanho, now, now,
+    );
+    await this.#reagendar();
+    return this.#documento(id)!;
+  }
+
+  // ─── firm settings and piece template ──────────────────────────────────────
+
+  /** The firm's settings and template description. */
+  configuracoes(): ConfiguracoesEscritorio {
+    const modelo = this.#config("modelo");
+    return {
+      pjeLimiteMb: Number(this.#config("pjeLimiteMb") ?? PJE_LIMITE_PADRAO_MB),
+      cidade: this.#config("cidade") ?? "",
+      modelo: modelo ? (JSON.parse(modelo) as InfoModelo) : null,
+    };
+  }
+
+  /** Changes the firm's settings. Callers check the user is an admin. */
+  salvarConfiguracoes(input: { pjeLimiteMb?: number; cidade?: string }): ConfiguracoesEscritorio {
+    const valido = validateConfiguracoes(input);
+    if (valido.pjeLimiteMb !== undefined) this.#setConfig("pjeLimiteMb", String(valido.pjeLimiteMb));
+    if (valido.cidade !== undefined) this.#setConfig("cidade", valido.cidade);
+    return this.configuracoes();
+  }
+
+  /** Replaces the firm's piece template after checking it. Callers check the user is an admin. */
+  async salvarModelo(bytes: Uint8Array): Promise<InfoModelo> {
+    if (bytes.byteLength > MAX_MODELO) {
+      throw new TypeError(`O modelo passa do limite de ${MAX_MODELO / 1024 / 1024} MB.`);
+    }
+    const { campos, avisos } = inspecionarModelo(bytes);
+    await this.env.COFRE.put(this.#chaveModelo(), bytes);
+    const info: InfoModelo = { tamanho: bytes.byteLength, atualizadoEm: Date.now(), campos, avisos };
+    this.#setConfig("modelo", JSON.stringify(info));
+    return info;
+  }
+
+  /** Goes back to the built-in template. Callers check the user is an admin. */
+  async removerModelo(): Promise<void> {
+    await this.env.COFRE.delete(this.#chaveModelo());
+    this.ctx.storage.sql.exec("DELETE FROM configuracoes WHERE chave = 'modelo'");
+  }
+
+  /** The firm's template bytes, or null when none was uploaded. */
+  async modelo(): Promise<Uint8Array | null> {
+    if (!this.#config("modelo")) return null;
+    const objeto = await this.env.COFRE.get(this.#chaveModelo());
+    return objeto ? new Uint8Array(await objeto.arrayBuffer()) : null;
+  }
+
+  #config(chave: string): string | undefined {
+    return this.ctx.storage.sql
+      .exec<{ valor: string }>("SELECT valor FROM configuracoes WHERE chave = ?", chave)
+      .toArray()[0]?.valor;
+  }
+
+  #setConfig(chave: string, valor: string): void {
+    this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", chave, valor,
+    );
+  }
+
+  #chaveModelo(): string {
+    return `${this.ctx.id.toString()}/modelos/peca.docx`;
   }
 
   // ─── reads ──────────────────────────────────────────────────────────────────

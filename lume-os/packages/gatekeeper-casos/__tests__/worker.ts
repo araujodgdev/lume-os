@@ -7,7 +7,9 @@ import type {
   CasosSession,
   DocumentoInfo,
   FiltroCasos,
+  NovaPeca,
   NovoCaso,
+  PecaGerada,
   ResultadoBusca,
   ResumoCaso,
   TrechoDocumento,
@@ -110,6 +112,14 @@ export class CasosTestParent extends DurableObject<Cloudflare.Env> {
     name: string, domain: string, consulta: string, casoId?: string,
   ): Promise<ResultadoBusca[]> {
     return (await this.#session(name, domain)).buscarDocumentos(consulta, casoId ? { casoId } : undefined);
+  }
+
+  async gerarPeca(name: string, domain: string, peca: NovaPeca): Promise<PecaGerada> {
+    return (await this.#session(name, domain)).gerarPeca(peca);
+  }
+
+  async autoApprovable(name: string, domain: string) {
+    return this.#facet(name, domain).getAutoApprovableActions();
   }
 
   async catalog(name: string, domain: string) {

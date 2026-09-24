@@ -1,16 +1,29 @@
 import { env } from "cloudflare:workers";
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { DocumentVault } from "../src/cofre/vault.js";
+import { CasosManagementApi } from "../src/casos.js";
+import { validateNovoCaso } from "../src/caso.js";
+import { modeloPadrao } from "../src/pecas/modelo.js";
 import { TAMANHO_PARTE } from "../src/cofre/tipos.js";
 import type { CasosTestParent, CofreTestHooks, FakeExtrator } from "./worker.js";
 
 const testEnv = env as unknown as {
   COFRE: R2Bucket;
+  CASE_REGISTRY: DurableObjectNamespace<import("../src/registry.js").CaseRegistry>;
   DOCUMENT_VAULT: DurableObjectNamespace<DocumentVault>;
   CASOS_TEST_PARENT: DurableObjectNamespace<CasosTestParent>;
   COFRE_TEST_HOOKS: DurableObjectNamespace<CofreTestHooks>;
 };
+
+/** The built-in template with its body replaced. */
+function modeloComCorpo(corpo: string): Uint8Array {
+  const arquivos = unzipSync(modeloPadrao());
+  const doc = strFromU8(arquivos["word/document.xml"]);
+  arquivos["word/document.xml"] = strToU8(doc.replace(/<w:body>[\s\S]*<w:sectPr>/, `<w:body>${corpo}<w:sectPr>`));
+  return zipSync(arquivos);
+}
 
 const hooks = () => testEnv.COFRE_TEST_HOOKS.getByName("hooks");
 const encoder = new TextEncoder();
@@ -223,5 +236,116 @@ describe("agent access to documents", () => {
       "Ler documento inexistente",
       "Buscar nos documentos",
     ]);
+  });
+});
+
+describe("pieces in the firm's template", () => {
+  const novoCaso = {
+    titulo: "Souza x Banco Beta",
+    cliente: { nome: "Maria Souza" },
+    poloCliente: "ativo" as const,
+    area: "consumidor" as const,
+  };
+
+  async function prepararCaso(domain: string) {
+    await testEnv.CASE_REGISTRY.getByName(domain).create("caso-1", validateNovoCaso(novoCaso));
+    return testEnv.CASOS_TEST_PARENT.getByName(`${domain}-ws`);
+  }
+
+  async function ultimaAcao(parent: DurableObjectStub<CasosTestParent>) {
+    const acoes = (await parent.events()).filter((e) => e.type === "action");
+    return acoes.at(-1) as Extract<Awaited<ReturnType<typeof parent.events>>[number], { type: "action" }>;
+  }
+
+  async function baixarTudo(vault: DurableObjectStub<DocumentVault>, id: string) {
+    const doc = (await vault.obter(id))!;
+    const partes: Uint8Array[] = [];
+    for (let n = 1; n <= Math.ceil(doc.tamanho / TAMANHO_PARTE); n++) partes.push(await vault.baixarParte(id, n));
+    return new Uint8Array(partes.flatMap((p) => [...p]));
+  }
+
+  it("generates a piece, shows it pending, saves it to the Cofre on approval and deletes it on revert", async () => {
+    const domain = "firm-peca";
+    await configurar({ markdown: { "Petição inicial.docx": "DOS FATOS Texto" } });
+    const parent = await prepararCaso(domain);
+    const vault = testEnv.DOCUMENT_VAULT.getByName(domain);
+
+    const peca = await parent.gerarPeca("gk", domain, {
+      casoId: "caso-1",
+      titulo: "Petição inicial",
+      html: "<h1>DOS FATOS</h1><p>Texto da <b>petição</b>.</p>",
+    });
+    expect(peca).toMatchObject({ casoId: "caso-1", nome: "Petição inicial.docx" });
+    expect(await parent.listDocumentos("gk", domain, "caso-1")).toEqual([
+      expect.objectContaining({ nome: "Petição inicial.docx", status: "processando", aviso: expect.stringContaining("aprovação") }),
+    ]);
+    expect(await vault.listar("caso-1")).toEqual([]);
+
+    const acao = await ultimaAcao(parent);
+    expect(acao.description).toMatchObject({
+      title: "Salvar peça no Cofre: Petição inicial.docx",
+      autoApprovable: true,
+      implementsRevert: true,
+      actionKind: { tag: "casos.peca" },
+    });
+    expect(acao.description.description).toContain("padrão forense");
+    expect(await parent.autoApprovable("gk", domain)).toEqual([{ tag: "casos.peca", label: "Salvar peça gerada no Cofre" }]);
+
+    await parent.apply("gk", domain, acao.action);
+    const [doc] = await vault.listar("caso-1");
+    expect(doc).toMatchObject({ nome: "Petição inicial.docx", tipo: "office" });
+    const xml = strFromU8(unzipSync(await baixarTudo(vault, doc.id))["word/document.xml"]);
+    expect(xml).toContain('<w:pStyle w:val="Heading1"/>');
+    expect(xml).toContain("petição");
+    await processar(vault, doc.id);
+    expect(await vault.buscar("fatos")).toHaveLength(1);
+    // Nothing is left pending, and the agent now sees the stored document only.
+    expect(await parent.listDocumentos("gk", domain, "caso-1")).toEqual([
+      expect.objectContaining({ id: doc.id, status: "pronto" }),
+    ]);
+
+    await parent.revert("gk", domain, acao.action);
+    expect(await vault.listar("caso-1")).toEqual([]);
+  });
+
+  it("fills the admin's template with the case, and a rejection discards the file", async () => {
+    const domain = "firm-peca-modelo";
+    const parent = await prepararCaso(domain);
+    const vault = testEnv.DOCUMENT_VAULT.getByName(domain);
+    const admin = new CasosManagementApi(testEnv.CASE_REGISTRY.getByName(domain), vault, true);
+    const lawyer = new CasosManagementApi(testEnv.CASE_REGISTRY.getByName(domain), vault, false);
+
+    expect(await lawyer.configuracoes()).toEqual({ pjeLimiteMb: 5, cidade: "", modelo: null });
+    expect(() => lawyer.salvarConfiguracoes({ cidade: "X" })).toThrow(/administradores/);
+    expect(() => lawyer.salvarModelo(new Uint8Array())).toThrow(/administradores/);
+    expect(() => lawyer.removerModelo()).toThrow(/administradores/);
+
+    const modelo = modeloComCorpo(
+      "<w:p><w:r><w:t>Cliente: {{cliente}} — {{cidade}}</w:t></w:r></w:p><w:p><w:r><w:t>{{conteudo}}</w:t></w:r></w:p>",
+    );
+    const info = await admin.salvarModelo(modelo);
+    expect(info).toMatchObject({ campos: ["cidade", "cliente", "conteudo"], avisos: [] });
+    expect(await admin.salvarConfiguracoes({ cidade: "Maceió", pjeLimiteMb: 3 })).toMatchObject({
+      cidade: "Maceió",
+      pjeLimiteMb: 3,
+      modelo: expect.objectContaining({ campos: ["cidade", "cliente", "conteudo"] }),
+    });
+    expect(await lawyer.baixarModelo()).toEqual(modelo);
+
+    await parent.gerarPeca("gk", domain, { casoId: "caso-1", titulo: "Contestação", html: "<p>Corpo</p>" });
+    const acao = await ultimaAcao(parent);
+    expect(acao.description.description).toContain("modelo do escritório");
+    const pendentes = await testEnv.COFRE.list({ prefix: "pendentes/" });
+    const pendente = pendentes.objects.find((o) => o.key.endsWith(`/${acao.action}.docx`))!;
+    const xml = strFromU8(unzipSync(new Uint8Array(await (await testEnv.COFRE.get(pendente.key))!.arrayBuffer()))["word/document.xml"]);
+    expect(xml).toContain("Cliente: Maria Souza — Maceió");
+    expect(xml).toContain("Corpo");
+
+    await parent.reject("gk", domain, acao.action);
+    expect(await testEnv.COFRE.head(pendente.key)).toBeNull();
+    expect(await parent.listDocumentos("gk", domain, "caso-1")).toEqual([]);
+
+    await admin.removerModelo();
+    expect((await lawyer.configuracoes()).modelo).toBeNull();
   });
 });

@@ -151,6 +151,29 @@ export interface ResultadoBusca {
   trecho: string;
 }
 
+/** A piece to generate as a Word file in the firm's template. */
+export interface NovaPeca {
+  /** The case it belongs to; its data fills the template's fields (client, case number, court). */
+  casoId: string;
+  /** Becomes the file name, e.g. "Petição inicial - Silva x Banco Alfa". */
+  titulo: string;
+  /**
+   * The piece's HTML. For a Documentos file, join the `html` of every block its `getDocument()`
+   * returns, in order. Headings, paragraphs, bold, italic, underline, lists, quotes, images and
+   * alignment carry over; fonts, sizes and colors come from the firm's template.
+   */
+  html: string;
+}
+
+/** A generated piece, proposed for the case's Cofre. */
+export interface PecaGerada {
+  casoId: string;
+  /** File name in the Cofre, ending in ".docx". */
+  nome: string;
+  /** Size in bytes. */
+  tamanho: number;
+}
+
 /** The firm's cases. */
 export interface CasosSession {
   /** Cases matching `filtro`, most recently changed first, without their `resumo`. */
@@ -195,4 +218,12 @@ export interface CasosSession {
    * up to 20 documents, best match first, optionally limited to one case.
    */
   buscarDocumentos(consulta: string, filtro?: { casoId?: string }): Promise<ResultadoBusca[]>;
+
+  /**
+   * Generates a Word (.docx) file of a piece in the firm's template, filling its fields from the
+   * case, and proposes saving it to the case's documents. Use it when the lawyer asks for the piece
+   * "em Word", "no modelo do escritório" or to file it. The file shows in `listDocumentos()` at once
+   * and joins the case once a lawyer approves.
+   */
+  gerarPeca(peca: NovaPeca): Promise<PecaGerada>;
 }

@@ -49,6 +49,51 @@ export type Achado = { documentoId: string; casoId: string; nome: string; trecho
 /** What `iniciarUpload` hands back to the page. */
 export type UploadIniciado = { uploadId: string; partes: number; tamanhoParte: number };
 
+/** The firm's uploaded piece template, as the page describes it. */
+export type InfoModelo = {
+  tamanho: number;
+  atualizadoEm: number;
+  /** Known fields found in the template, e.g. ["cliente", "conteudo"]. */
+  campos: string[];
+  /** What the lawyer should know, e.g. the template has no {{conteudo}}. */
+  avisos: string[];
+};
+
+/** Firm-wide settings for pieces and PJe downloads. */
+export type ConfiguracoesEscritorio = {
+  /** Largest file the PJe accepts, in MB; "Baixar para o PJe" splits PDFs below it. */
+  pjeLimiteMb: number;
+  /** City for the {{cidade}} field, e.g. "São Paulo". */
+  cidade: string;
+  /** The uploaded template, or null while pieces use the built-in forensic default. */
+  modelo: InfoModelo | null;
+};
+
+/** PJe limit used until an admin changes it. */
+export const PJE_LIMITE_PADRAO_MB = 5;
+
+/** Validates the settings an admin submits. */
+export function validateConfiguracoes(input: { pjeLimiteMb?: unknown; cidade?: unknown }): {
+  pjeLimiteMb?: number;
+  cidade?: string;
+} {
+  const saida: { pjeLimiteMb?: number; cidade?: string } = {};
+  if (input.pjeLimiteMb !== undefined) {
+    const mb = input.pjeLimiteMb;
+    if (typeof mb !== "number" || !Number.isFinite(mb) || mb < 0.5 || mb > 100) {
+      throw new TypeError("O limite do PJe deve ficar entre 0,5 e 100 MB.");
+    }
+    saida.pjeLimiteMb = Math.round(mb * 10) / 10;
+  }
+  if (input.cidade !== undefined) {
+    if (typeof input.cidade !== "string" || input.cidade.trim().length > 100) {
+      throw new TypeError("A cidade deve ser um texto de até 100 caracteres.");
+    }
+    saida.cidade = input.cidade.trim();
+  }
+  return saida;
+}
+
 
 type Formato = { tipo: TipoArquivo; mime: string };
 

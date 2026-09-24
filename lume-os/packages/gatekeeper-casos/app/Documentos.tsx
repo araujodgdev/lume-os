@@ -1,5 +1,6 @@
 import { DownloadSimple, FileText, Trash, UploadSimple, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { dividirParaPje, nomeParaPje, ziparPartes } from "./pje";
 import {
   contarPartes,
   EXTENSOES_ACEITAS,
@@ -54,7 +55,26 @@ export async function enviarArquivo(
   }
 }
 
-export default function Documentos({ api, casoId }: { api: DocumentosClient; casoId: string }) {
+/** Saves bytes as a file through a temporary link (the frame allows downloads, not navigation). */
+export function salvarArquivo(bytes: Uint8Array | Uint8Array[], nome: string, tipo: string): void {
+  const url = URL.createObjectURL(new Blob((Array.isArray(bytes) ? bytes : [bytes]) as BlobPart[], { type: tipo }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export default function Documentos({
+  api,
+  casoId,
+  limitePjeMb = 5,
+}: {
+  api: DocumentosClient;
+  casoId: string;
+  /** The firm's PJe per-file limit, for "Baixar para o PJe". */
+  limitePjeMb?: number;
+}) {
   const [documentos, setDocumentos] = useState<DocumentoCofre[]>([]);
   const [envios, setEnvios] = useState<Envio[]>([]);
   const [erro, setErro] = useState<string>();
@@ -101,18 +121,52 @@ export default function Documentos({ api, casoId }: { api: DocumentosClient; cas
     await carregar();
   }
 
+  const [aviso, setAviso] = useState<string>();
+  const [preparando, setPreparando] = useState<string>();
+
+  async function bytesDe(doc: DocumentoCofre): Promise<Uint8Array> {
+    const partes: Uint8Array[] = [];
+    for (let n = 1; n <= contarPartes(doc.tamanho); n++) partes.push(await api.baixarParte(doc.id, n));
+    const bytes = new Uint8Array(doc.tamanho);
+    let offset = 0;
+    for (const parte of partes) {
+      bytes.set(parte, offset);
+      offset += parte.byteLength;
+    }
+    return bytes;
+  }
+
   async function baixar(doc: DocumentoCofre) {
     try {
-      const partes: Uint8Array[] = [];
-      for (let n = 1; n <= contarPartes(doc.tamanho); n++) partes.push(await api.baixarParte(doc.id, n));
-      const url = URL.createObjectURL(new Blob(partes as BlobPart[], { type: doc.mime }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = doc.nome;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      salvarArquivo(await bytesDe(doc), doc.nome, doc.mime);
     } catch (caught) {
       setErro(messageOf(caught));
+    }
+  }
+
+  /** Splits a PDF under the firm's PJe limit and saves the parts as a .zip (or the PDF if it fits). */
+  async function baixarParaPje(doc: DocumentoCofre) {
+    setErro(undefined);
+    setAviso(undefined);
+    setPreparando(doc.id);
+    try {
+      const { partes, avisos } = await dividirParaPje(await bytesDe(doc), limitePjeMb * 1024 * 1024, doc.nome);
+      if (partes.length === 1) {
+        salvarArquivo(partes[0].bytes, partes[0].nome, "application/pdf");
+      } else {
+        salvarArquivo(ziparPartes(partes), `${nomeParaPje(doc.nome)}_pje.zip`, "application/zip");
+      }
+      const limite = limitePjeMb.toLocaleString("pt-BR");
+      setAviso([
+        partes.length === 1
+          ? `"${doc.nome}" já cabe no limite de ${limite} MB do PJe.`
+          : `"${doc.nome}" foi dividido em ${partes.length} partes de até ${limite} MB.`,
+        ...avisos,
+      ].join(" "));
+    } catch (caught) {
+      setErro(messageOf(caught));
+    } finally {
+      setPreparando(undefined);
     }
   }
 
@@ -159,6 +213,7 @@ export default function Documentos({ api, casoId }: { api: DocumentosClient; cas
       </div>
 
       {erro && <p role="alert" className="text-sm text-kumo-danger">{erro}</p>}
+      {aviso && !erro && <p className="text-sm text-kumo-subtle">{aviso}</p>}
 
       {envios.map((envio) => (
         <p key={envio.nome} className={`text-sm ${envio.erro ? "text-kumo-danger" : "text-kumo-subtle"}`}>
@@ -188,6 +243,16 @@ export default function Documentos({ api, casoId }: { api: DocumentosClient; cas
               {doc.status === "pronto" && (
                 <button type="button" onClick={() => void verTexto(doc)} className="text-sm text-kumo-link">
                   Ver texto
+                </button>
+              )}
+              {doc.tipo === "pdf" && doc.status !== "enviando" && (
+                <button
+                  type="button"
+                  onClick={() => void baixarParaPje(doc)}
+                  disabled={preparando === doc.id}
+                  className="text-sm text-kumo-link disabled:opacity-50"
+                >
+                  {preparando === doc.id ? "Preparando…" : "Baixar para o PJe"}
                 </button>
               )}
               <IconButton label={`Baixar ${doc.nome}`} onClick={() => void baixar(doc)}>

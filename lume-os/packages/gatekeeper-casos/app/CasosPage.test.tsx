@@ -38,6 +38,12 @@ function client(overrides: Partial<CasosClient> = {}): CasosClient {
     textoDocumento: vi.fn<CasosClient["textoDocumento"]>(async () => null),
     baixarParte: vi.fn<CasosClient["baixarParte"]>(),
     excluirDocumento: vi.fn<CasosClient["excluirDocumento"]>(async () => {}),
+    ehAdmin: vi.fn<CasosClient["ehAdmin"]>(async () => false),
+    configuracoes: vi.fn<CasosClient["configuracoes"]>(async () => ({ pjeLimiteMb: 5, cidade: "", modelo: null })),
+    salvarConfiguracoes: vi.fn<CasosClient["salvarConfiguracoes"]>(),
+    salvarModelo: vi.fn<CasosClient["salvarModelo"]>(),
+    removerModelo: vi.fn<CasosClient["removerModelo"]>(),
+    baixarModelo: vi.fn<CasosClient["baixarModelo"]>(async () => null),
     ...overrides,
   };
 }

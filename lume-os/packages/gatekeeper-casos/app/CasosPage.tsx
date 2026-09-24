@@ -1,7 +1,8 @@
 import { ArrowLeft, MagnifyingGlass, Plus, Sparkle, Trash } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Documentos, { type DocumentosClient } from "./Documentos";
-import type { Achado } from "../src/cofre/tipos";
+import ModeloEscritorio, { type ModeloClient } from "./ModeloEscritorio";
+import { PJE_LIMITE_PADRAO_MB, type Achado, type ConfiguracoesEscritorio } from "../src/cofre/tipos";
 import type {
   AlteracoesCaso,
   AreaCaso,
@@ -14,7 +15,7 @@ import type {
 } from "../src/types";
 
 /** The Casos page's capability, served by `CasosManagementApi`. */
-export type CasosClient = DocumentosClient & {
+export type CasosClient = DocumentosClient & ModeloClient & {
   list(filtro?: FiltroCasos): Promise<ResumoCaso[]>;
   get(id: string): Promise<Caso | null>;
   create(novo: NovoCaso): Promise<Caso>;
@@ -66,12 +67,32 @@ type View = { mode: "list" } | { mode: "new" } | { mode: "edit"; id: string };
 
 export default function CasosPage({ api, openPrompt }: Props) {
   const [view, setView] = useState<View>({ mode: "list" });
+  const [configuracoes, setConfiguracoes] = useState<ConfiguracoesEscritorio | null>(null);
+  const [admin, setAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([api.configuracoes(), api.ehAdmin()])
+      .then(([config, ehAdmin]) => {
+        if (cancelled) return;
+        setConfiguracoes(config);
+        setAdmin(ehAdmin);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
   if (view.mode === "list") {
     return (
       <CasosList
         api={api}
         onNew={() => setView({ mode: "new" })}
         onOpen={(id) => setView({ mode: "edit", id })}
+        rodape={configuracoes && (
+          <ModeloEscritorio api={api} admin={admin} configuracoes={configuracoes} onChange={setConfiguracoes} />
+        )}
       />
     );
   }
@@ -83,6 +104,7 @@ export default function CasosPage({ api, openPrompt }: Props) {
       onClose={() => setView({ mode: "list" })}
       onSaved={(caso) => setView({ mode: "edit", id: caso.id })}
       openPrompt={openPrompt}
+      limitePjeMb={configuracoes?.pjeLimiteMb ?? PJE_LIMITE_PADRAO_MB}
     />
   );
 }
@@ -91,10 +113,13 @@ function CasosList({
   api,
   onNew,
   onOpen,
+  rodape,
 }: {
   api: CasosClient;
   onNew: () => void;
   onOpen: (id: string) => void;
+  /** Rendered under the list: the firm's template and PJe settings. */
+  rodape?: ReactNode;
 }) {
   const [filter, setFilter] = useState<Filter>("ativo");
   const [query, setQuery] = useState("");
@@ -244,6 +269,8 @@ function CasosList({
           </ul>
         </section>
       )}
+
+      {rodape}
     </main>
   );
 }
@@ -328,12 +355,14 @@ function CasoEditor({
   onClose,
   onSaved,
   openPrompt,
+  limitePjeMb,
 }: {
   api: CasosClient;
   id?: string;
   onClose: () => void;
   onSaved: (caso: Caso) => void;
   openPrompt: (prompt: string) => void | Promise<void>;
+  limitePjeMb: number;
 }) {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [saved, setSaved] = useState<Caso | null>(null);
@@ -508,7 +537,7 @@ function CasoEditor({
         </div>
       </div>
 
-      {saved && <Documentos api={api} casoId={saved.id} />}
+      {saved && <Documentos api={api} casoId={saved.id} limitePjeMb={limitePjeMb} />}
     </main>
   );
 }

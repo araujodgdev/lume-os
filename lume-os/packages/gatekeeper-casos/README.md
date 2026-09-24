@@ -25,6 +25,18 @@ Each case holds documents: PDFs (scans included), DOCX, spreadsheets, ODF, CSV, 
   - A failed step is retried twice with backoff before the document is marked `erro`.
 - **OCR availability.** The deploy sets `CASOS_OCR=true` only when the gateway is in the deployment's own account and lists the `anthropic` provider, and the gateway must hold an Anthropic key. Without it, scans are stored and downloadable but marked `sem_texto`. Under `pnpm dev-server` there is no Workers AI, so only text files are read.
 
+## Pieces in the firm's template
+
+When a lawyer asks for a piece "em Word", the agent calls `CASOS.gerarPeca({ casoId, titulo, html })` with the HTML of a Documentos file (its `getDocument()` blocks, joined). The Casos Worker builds a `.docx` and proposes saving it to the case's Cofre. The action (`casos.peca`) is auto-approvable, since it only adds a document the lawyer asked for, and reverting it deletes the document. Until a lawyer decides, the file waits in R2 under `pendentes/` and shows in the agent's `listDocumentos()` as pending.
+
+- **Template.** An admin uploads the firm's letterhead as a `.docx` in the Casos page ("Modelo do escritório e PJe"); until then a built-in forensic template is used (Times New Roman 12, 1.5 spacing, 3/2 cm margins, 2.5 cm first-line indent). The piece goes where the template says `{{conteudo}}`, or at the end of the body. `{{cliente}}`, `{{processo}}`, `{{tribunal}}`, `{{orgao_julgador}}`, `{{cidade}}` and `{{data}}` (in full, Brasília time) are filled from the case and the firm's settings, in the body, headers and footers.
+- **Editing, not regenerating.** `src/pecas/modelo.ts` edits the template's XML inside its ZIP (`fflate`), so its styles, headers, footers, page setup and letterhead images survive untouched. Word often splits a placeholder across runs; filling handles that, keeping the formatting of the run where the field starts. Numbering definitions and images are added next to the template's own, in schema order.
+- **Conversion.** `src/pecas/ooxml.ts` turns the Documentos HTML (`htmlparser2`) into paragraphs: headings use the template's own "heading 1-3" styles, found by name so localized ids like `Ttulo1` work, and fall back to bold text; bold, italic, underline, strike, real Word lists (restarting per list), quotes as ABNT long-citation blocks, images from data URLs, alignment, and tables as tab-separated rows. Fonts, sizes and colors typed in the editor are dropped on purpose: typography is the template's.
+
+## PJe
+
+Each PDF in the Cofre has **Baixar para o PJe**. In the browser, `app/pje.ts` splits it with `pdf-lib` into parts under the firm's limit (5 MB by default; admins change it next to the template) and saves them as `nome_parte_01.pdf`, `nome_parte_02.pdf`… in a `.zip`, with PJe-safe names. Page sizes are estimated one page at a time and every part is checked for real, so parts never exceed the limit; a page that alone is larger is flagged. A PDF already under the limit downloads as is.
+
 ## Layout
 
 | File | Role |
@@ -37,6 +49,10 @@ Each case holds documents: PDFs (scans included), DOCX, spreadsheets, ODF, CSV, 
 | `src/cofre/vault.ts` | `DocumentVault`: uploads, the reading pipeline, full-text search and deletion. |
 | `src/cofre/extrator.ts` | What the vault needs from outside: `toMarkdown()`, `pdf-lib` and Claude OCR, behind one interface the tests replace. |
 | `src/cofre/claude.ts` | Claude OCR over the AI Gateway binding. |
+| `src/pecas/ooxml.ts` | Documentos HTML to WordprocessingML paragraphs. |
+| `src/pecas/modelo.ts` | Template validation, field filling, body insertion, numbering and images; the built-in forensic template. |
+| `src/pecas/campos.ts` | Field values from the case and the firm's settings. |
+| `app/pje.ts` | Splitting PDFs under the PJe limit, in the browser. |
 | `src/casos.ts` | Vendor, account, verifier, the page's `CasosManagementApi`, and `CasosGatekeeper`: the per-workspace facet that stores proposals, applies approved ones and simulates pending ones. |
 | `app/` | The page, a single-file React app bundled into `src/generated/app.txt` by `build-app.mjs`. |
 
