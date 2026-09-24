@@ -30,7 +30,7 @@
 
 ## Overview
 
-This repository adds deployment controls around Lume OS, a pinned copy of its [open-source upstream](https://github.com/cloudflare/cloudflare-os) vendored in `lume-os/` without modification.
+This repository adds deployment controls around Lume OS, a pinned copy of its [open-source upstream](https://github.com/cloudflare/cloudflare-os) vendored in `lume-os/` as a light fork: rebranded, translated to pt-BR, and trimmed for law firms. [docs/fork.md](docs/fork.md) lists every deviation.
 
 | Control | What you own |
 | --- | --- |
@@ -46,7 +46,7 @@ This repository adds deployment controls around Lume OS, a pinned copy of its [o
 
 <img src="docs/assets/architecture.svg" alt="Lume OS deployment architecture: users reach one public route, owned by the router Worker, which serves the frontend and proxies /api to the Workshop backend and /gatekeeper/&lt;name&gt; to the matching Gatekeeper. Behind it is the pinned Lume OS release, holding the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers. Service bindings connect it to the Workers and resources this repository owns: AI Gateway with no API token, custom Gatekeepers, the Error Reporter, and KV and R2 storage.">
 
-The deployment is six Workers. A **router** owns the public route and serves the frontend, proxying `/api` to the Workshop backend and `/gatekeeper/<name>` to whichever Gatekeeper the binding name matches; the Workshop, the Context, Scheduler and custom Gatekeepers, and the Error Reporter sit behind it with no route of their own, reachable only over service bindings.
+The deployment is five Workers. A **router** owns the public route and serves the frontend, proxying `/api` to the Workshop backend and `/gatekeeper/<name>` to whichever Gatekeeper the binding name matches; the Workshop, the Context and Scheduler Gatekeepers, and the Error Reporter sit behind it with no route of their own, reachable only over service bindings.
 
 The deploy command derives temporary Wrangler files from upstream base configs, builds the frontend in Cloudflare Access mode, deploys the private Error Reporter, the Gatekeepers and the Workshop before the router that binds them, and removes generated files even on failure. Secrets never enter tracked configuration.
 
@@ -101,12 +101,11 @@ Backend error reporting is enabled without a vendor account. Explicit upstream i
 ### 4. Verify the deployment
 
 - Open the router's hostname and confirm Access signs in with the expected identity, and that it is the only public route into the deployment.
-- Open `/admin`, confirm the email is an administrator, and set Context, Scheduler and Custom Gatekeepers to disabled, optional, or enabled.
+- Open `/admin`, confirm the email is an administrator, and set the Context and Scheduler Gatekeepers to disabled, optional, or enabled.
 - If Context Artifacts is enabled, create a Git-backed collection and confirm its repository can be populated and refreshed.
-- Enable the Custom Gatekeeper, ask for deployment information, and confirm its read appears as an observation.
 - Open the Error Reporter Worker's [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) and verify its structured `error_report` query surface.
 - Ask an agent to schedule something a few minutes out, and confirm it runs — that exercises the Scheduler Gatekeeper end to end.
-- Review logs for the router, Workshop, Context, Scheduler, custom Gatekeeper, and Error Reporter Workers.
+- Review logs for the router, Workshop, Context, Scheduler, and Error Reporter Workers.
 
 ## Customization
 
@@ -115,7 +114,7 @@ Backend error reporting is enabled without a vendor account. Explicit upstream i
 | Site name, logo, color, announcements, instructions, connectors | `/admin` | No |
 | Sign-in, routes, AI, storage, observability, Worker identities | [`deployment.jsonc`](deployment.jsonc) | Yes |
 | Logs, traces, error destinations, browser reporting | [Observability guide](docs/observability.md) | Sometimes |
-| Organization APIs and capabilities | [`packages/custom-gatekeeper`](packages/custom-gatekeeper/README.md) | Yes |
+| Organization APIs and capabilities | A Gatekeeper under `packages/`; see [Custom Gatekeepers](docs/customization.md#custom-gatekeepers) | Yes |
 | Product behavior unavailable through Worker boundaries | Pinned upstream fork/commit | Yes |
 
 The complete control reference and recipes live in [Customization](docs/customization.md). The upstream [`write-gatekeeper` skill](https://github.com/cloudflare/cloudflare-os/blob/main/.agents/skills/write-gatekeeper/SKILL.md) covers richer integrations.

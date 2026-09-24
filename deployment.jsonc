@@ -31,8 +31,6 @@
     // The Scheduler Gatekeeper, which gives agents scheduled and recurring work. Ambient like
     // the Context Gatekeeper
     "scheduler": { "name": "lume-os-scheduler" },
-
-    "customGatekeeper": { "name": "lume-os-custom-gatekeeper" },
     "errorReporter": { "name": "lume-os-error-reporter" }
   },
 
@@ -86,13 +84,6 @@
     //   // Optional override; defaults to "gatekeeper-context-collections".
     //   "namespace": "custom-context-collections"
     // }
-  },
-
-  // Displayed to agents when the example custom integration is enabled in /admin.
-  // Reference: docs/customization.md#custom-gatekeepers
-  "customGatekeeper": {
-    "name": "Lume OS",
-    "message": "This is the Lume OS deployment on Cloudflare Workers."
   },
 
   // Explicit backend issue reports go to a private Worker that emits structured console errors.
