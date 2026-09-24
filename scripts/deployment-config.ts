@@ -31,13 +31,18 @@ export interface RouterRoute {
   customDomain?: string;
 }
 
-/** Cloudflare Access trust boundary and the `/admin` allowlist. */
+/** Sign-in method and the `/admin` allowlist. */
 export interface AccessConfig {
-  /** Access team origin, HTTPS with no path. */
-  issuer: string;
-  /** The self-hosted Access application's AUD tag. */
-  audience: string;
-  /** Access-verified emails allowed into `/admin`. */
+  /**
+   * `"cloudflare-access"` (the default when absent) trusts the Access JWT. `"password"` uses
+   * upstream's built-in username/password login and signup, with no identity provider in front.
+   */
+  mode?: "cloudflare-access" | "password";
+  /** Access team origin, HTTPS with no path. Access mode only. */
+  issuer?: string;
+  /** The self-hosted Access application's AUD tag. Access mode only. */
+  audience?: string;
+  /** Access-verified emails (Access mode) or usernames (password mode) allowed into `/admin`. */
   admins: string[];
 }
 

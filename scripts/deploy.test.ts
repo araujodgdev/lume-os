@@ -601,6 +601,29 @@ test("passes VITE_CF_ACCESS_MODE explicitly rather than inheriting it", () => {
   assert.match(withAccessMode[0].args.join(" "), /@gadgets\/workshop-frontend/);
 });
 
+test("password mode drops Access vars and builds the frontend without Access mode", async () => {
+  const config = variant((c) => {
+    c.access = { mode: "password", admins: ["admin"] };
+  });
+  const vars = generateConfigs(config, await baseConfigs()).workshop.vars!;
+  assert.deepEqual(vars.ADMINS, ["admin"]);
+  assert.equal("CF_ACCESS_ISS" in vars, false);
+  assert.equal("CF_ACCESS_AUD" in vars, false);
+  assert.deepEqual(
+    buildCommands(config).filter(({ env }) => env).map(({ env }) => env),
+    [{ VITE_CF_ACCESS_MODE: "false" }]);
+});
+
+test("password mode requires usernames and rejects unknown modes", () => {
+  assert.throws(
+    () => validateConfig(variant((c) => {
+      c.access = { mode: "password", admins: ["admin@example.com"] };
+    })),
+    /username/i);
+  assert.throws(
+    () => validateConfig(variant((c) => { c.access.mode = "oauth"; })), /access\.mode/);
+});
+
 test("builds the frontend before the router", () => {
   const order = buildCommands(validConfig).map(({ args }) => args.join(" "));
   const frontend = order.findIndex((command) => command.includes("workshop-frontend"));
