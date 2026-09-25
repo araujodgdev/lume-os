@@ -361,9 +361,12 @@ export default function SandboxedGatekeeperApp({ frame, gatekeeperVendorId }: {
     <iframe
       ref={iframeRef}
       srcDoc={frame.iframeHtml}
-      // allow-scripts: run the app's JS. allow-modals: its beforeunload unsaved-changes guard. Not
-      // allow-same-origin (the frame stays an opaque origin), and the app's CSP keeps connect-src 'none'.
-      sandbox="allow-scripts allow-modals"
+      // allow-scripts: run the app's JS. allow-modals: its beforeunload unsaved-changes guard.
+      // allow-downloads (Lume): the Casos page saves vault documents the frame assembled from RPC
+      // chunks. allow-popups + allow-popups-to-escape-sandbox (Lume): Pesquisa links to decisions
+      // on the courts' own sites, which must open as ordinary tabs. Not allow-same-origin (the
+      // frame stays an opaque origin), and the app's CSP keeps connect-src 'none'.
+      sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox"
       allow="clipboard-write"
       title="Gatekeeper app"
       style={iframeStyleForOverlay(overlay)}

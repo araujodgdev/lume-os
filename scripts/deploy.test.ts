@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parse, type ParseError } from "jsonc-parser";
-import { aiGatewayPlan, buildCommands, generateConfigs, validateConfig } from "./deploy.ts";
+import {
+  aiGatewayPlan,
+  buildCommands,
+  cofreOcrEnabled,
+  generateConfigs,
+  generateVapidKeys,
+  NOTIFICATION_CRON,
+  validateConfig,
+} from "./deploy.ts";
 import type {
   BaseConfigs,
   DeploymentConfig,
@@ -42,6 +50,7 @@ const validConfig: DeploymentConfig = {
     blueprintsKvNamespaceId: "blueprints-kv-id",
     avatarsKvNamespaceId: "avatars-kv-id",
     blueprintContentBucket: "lume-os-blueprints",
+    cofreBucket: null,
   },
   observability: {
     enabled: true,
@@ -225,6 +234,18 @@ test("generates Access-mode Workshop and Context configs", async () => {
       entrypoint: "GatekeeperVendor",
       props: { sharingDomain: "https://os.example.com" },
     },
+    {
+      binding: "GATEKEEPER_AGENDA",
+      service: "acme-lume-os-casos",
+      entrypoint: "AgendaVendor",
+      props: { sharingDomain: "https://os.example.com" },
+    },
+    {
+      binding: "GATEKEEPER_PESQUISA",
+      service: "acme-lume-os-casos",
+      entrypoint: "PesquisaVendor",
+      props: { sharingDomain: "https://os.example.com" },
+    },
   ]);
   assert.deepEqual(generated.workshop.kv_namespaces, [
     { binding: "BLUEPRINTS", id: "blueprints-kv-id" },
@@ -312,6 +333,41 @@ test("deploys the ambient Scheduler Gatekeeper the hosted flow preinstalls", asy
   assert.deepEqual(builds.map((args) => args.at(-1)), ["build:app", "build"]);
 });
 
+test("gives Casos the vault bucket, Workers AI, and OCR only when Claude is reachable", async () => {
+  const bases = await baseConfigs();
+  const generated = generateConfigs(validConfig, bases);
+
+  // Unnamed: Wrangler provisions it on first deploy.
+  assert.deepEqual(generated.casos.r2_buckets, [{ binding: "COFRE" }]);
+  assert.deepEqual(generated.casos.ai, { binding: "WORKERS_AI" });
+  // validConfig lists anthropic on a same-account gateway.
+  assert.deepEqual(generated.casos.vars, {
+    CASOS_OCR: "true",
+    CASOS_OCR_MODEL: "claude-opus-5",
+    CF_AI_GATEWAY: "lume-os",
+  });
+
+  const named = generateConfigs(variant((c) => {
+    c.resources.cofreBucket = "acme-cofre";
+    c.casos = { ocrModel: "claude-sonnet-5" };
+  }), bases);
+  assert.deepEqual(named.casos.r2_buckets, [{ binding: "COFRE", bucket_name: "acme-cofre" }]);
+  assert.equal(named.casos.vars!.CASOS_OCR_MODEL, "claude-sonnet-5");
+
+  const noAnthropic = variant((c) => { c.aiGateway.providers = ["cloudflare"]; });
+  assert.equal(cofreOcrEnabled(noAnthropic), false);
+  assert.equal(cofreOcrEnabled(variant((c) => {
+    c.aiGateway.accountId = "fedcba9876543210fedcba9876543210";
+  })), false, "the binding cannot reach another account's gateway");
+  assert.equal(cofreOcrEnabled(variant((c) => { c.aiGateway.enabled = false; })), false);
+
+  assert.throws(() => validateConfig(variant((c) => { c.casos = { ocrModel: "gpt-5" }; })),
+    /casos.ocrModel/);
+  assert.throws(() => validateConfig(variant((c) => {
+    delete c.resources.cofreBucket;
+  })), /resources.cofreBucket/);
+});
+
 test("deploys the Casos Gatekeeper scoped like Context, with its migrations intact", async () => {
   const bases = await baseConfigs();
   const generated = generateConfigs(
@@ -322,10 +378,14 @@ test("deploys the Casos Gatekeeper scoped like Context, with its migrations inta
   assert.deepEqual(
     generated.workshop.services!.find((service) => service.binding === "GATEKEEPER_CASOS")?.props,
     { sharingDomain: "acme" });
+  assert.deepEqual(generated.casos.browser, { binding: "BROWSER" });
+  // The Agenda reads the same registry, so it must share the boundary.
+  assert.deepEqual(
+    generated.workshop.services!.find((service) => service.binding === "GATEKEEPER_AGENDA")?.props,
+    { sharingDomain: "acme" });
   // The firm's cases live in these Durable Objects.
   assert.deepEqual(generated.casos.migrations, bases.casos.migrations);
   assert.ok(generated.casos.migrations!.length > 0, "casos lost its DO migrations");
-  assert.equal(generated.casos.vars, undefined);
 
   const builds = buildCommands(validConfig)
     .map(({ args }) => args)
@@ -559,6 +619,7 @@ test("generates binding-only storage for automatic provisioning", async () => {
       blueprintsKvNamespaceId: null,
       avatarsKvNamespaceId: null,
       blueprintContentBucket: null,
+      cofreBucket: null,
     };
   });
 
@@ -570,6 +631,7 @@ test("generates binding-only storage for automatic provisioning", async () => {
   ]);
   assert.deepEqual(generated.workshop.r2_buckets, [{ binding: "BLUEPRINT_CONTENT" }]);
   assert.deepEqual(generated.context.kv_namespaces, [{ binding: "CONTEXT_COLLECTIONS" }]);
+  assert.deepEqual(generated.casos.r2_buckets, [{ binding: "COFRE" }]);
 });
 
 /**
@@ -654,4 +716,15 @@ test("skips the Error Reporter build when error reporting is disabled", () => {
   });
   const commands = buildCommands(config).map(({ args }) => args.join(" "));
   assert.equal(commands.some((command) => command.includes("error-reporter")), false);
+});
+
+test("delivers notifications on a schedule and generates Web Push keys", async () => {
+  const generated = generateConfigs(validConfig, await baseConfigs());
+  assert.deepEqual(generated.workshop.triggers, { crons: [NOTIFICATION_CRON] });
+
+  const keys = generateVapidKeys();
+  const point = Buffer.from(keys.publicKey, "base64url");
+  assert.equal(point.length, 65);
+  assert.equal(point[0], 4);
+  assert.equal(Buffer.from(keys.privateKey, "base64url").length, 32);
 });

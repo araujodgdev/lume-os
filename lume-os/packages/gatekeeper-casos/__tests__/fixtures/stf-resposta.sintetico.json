@@ -1,0 +1,5 @@
+{"result":{"hits":{"total":{"value":1},"hits":[{"_source":{
+  "id":"sjur123456","titulo":"RE 1234567","processo_classe_processual_unificada_classe_sigla":"RE","processo_numero":"1234567",
+  "procedencia_geografica_uf_sigla":"SP","orgao_julgador":"Tribunal Pleno","relator_processo_nome":"MIN. FULANO DE TAL",
+  "julgamento_data":"2024-05-10","publicacao_data":"2024-05-20","ementa_texto":"Ementa: RECURSO EXTRAORDINÁRIO. Tema de repercussão geral."
+}}]}}}

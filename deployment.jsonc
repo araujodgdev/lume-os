@@ -99,12 +99,25 @@
     "release": null
   },
 
+  // Casos Gatekeeper. OCR of scanned documents in the Cofre runs on Claude through the AI Gateway
+  // above, so it turns on only when aiGateway.providers lists "anthropic" and the gateway holds an
+  // Anthropic key (dashboard -> AI Gateway -> the gateway -> Provider keys). Until then scanned
+  // PDFs are stored and downloadable, but marked "sem texto". Digital PDFs, DOCX and spreadsheets
+  // are read either way, at no cost.
+  // Reference: lume-os/packages/gatekeeper-casos/README.md
+  "casos": {
+    // Transcribes about 10 pages per request; roughly US$0.02-0.03 per scanned page on Opus 5.
+    "ocrModel": "claude-opus-5"
+  },
+
   // null values use Wrangler automatic provisioning. Set IDs/names to reuse owned resources.
   // https://developers.cloudflare.com/workers/wrangler/configuration/#automatic-provisioning
   "resources": {
     "blueprintsKvNamespaceId": null,
     "avatarsKvNamespaceId": null,
-    "blueprintContentBucket": null
+    "blueprintContentBucket": null,
+    // The Cofre's case documents, served by the Casos Gatekeeper.
+    "cofreBucket": null
   },
 
   // Structured custom logs stay enabled. Invocation logs and traces are separate volume controls.

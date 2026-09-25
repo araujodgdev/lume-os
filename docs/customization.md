@@ -33,7 +33,8 @@ The custom logo appears in the app chrome, sign-in screens, and browser tab on e
 | `aiGateway` | Deployment-managed model catalog | Enabled by default over the Workers AI binding; which providers to advertise, and which gateway |
 | `context` | Context sharing boundary, snapshot KV, and optional Artifacts repositories | `null` to scope data to the public origin, or a pinned stable label; automatic or existing KV; Git-backed collections disabled or enabled |
 | `errorReporting` | Private explicit-issue destination | Console Reporter enabled state, environment, and release metadata |
-| `resources` | Blueprint/avatar KV and blueprint-content R2 | `null` to provision or explicit IDs/names to reuse |
+| `resources` | Blueprint/avatar KV, blueprint-content R2, and the Cofre's R2 | `null` to provision or explicit IDs/names to reuse |
+| `casos` | Casos Gatekeeper settings | `ocrModel`, the Claude model that transcribes scanned documents |
 | `observability` | Worker telemetry | Structured logs, invocation logs, traces, and sampling; see the [observability guide](observability.md) |
 
 Secrets are never valid values in this file. Install them interactively with Wrangler against the Worker that consumes them.
@@ -48,7 +49,7 @@ The deployment is six Workers. Keep their names unique: service bindings use the
 | `workshop` | The Lume OS backend, holding all user data in Durable Objects. |
 | `context` | The Context Gatekeeper. |
 | `scheduler` | The Scheduler Gatekeeper, which gives agents scheduled and recurring work. |
-| `casos` | The Casos Gatekeeper: the firm's case registry, its page, and the agent's `CASOS` binding. See its [README](../lume-os/packages/gatekeeper-casos/README.md). |
+| `casos` | The Casos Gatekeeper: the firm's case registry, its page, and the agent's `CASOS` binding. The same Worker serves the Agenda (its page and the agent's `AGENDA` binding). See its [README](../lume-os/packages/gatekeeper-casos/README.md). |
 | `errorReporter` | The private explicit-issue destination. |
 
 Context and Scheduler are *ambient*: upstream's release marks both `PREINSTALL`, so the hosted flow installs them on every instance and this starter deploys them for the same reason. Neither takes configuration beyond its name — the Scheduler takes none at all.
@@ -114,7 +115,8 @@ Wrangler supports [automatic provisioning](https://developers.cloudflare.com/wor
 "resources": {
   "blueprintsKvNamespaceId": null,
   "avatarsKvNamespaceId": null,
-  "blueprintContentBucket": null
+  "blueprintContentBucket": null,
+  "cofreBucket": null
 }
 ```
 
@@ -146,6 +148,9 @@ To isolate repositories under another stable namespace, add the optional propert
 Artifacts creates the namespace implicitly when the first repository is created. Keep the selected namespace stable: existing Git-backed collections refer to repositories in it. Disabling the binding later stops repository refresh and token management but does not delete repositories; the last synchronized Context content remains readable. Write tokens grant repository mutation authority, so protect them like other credentials and revoke them when no longer needed.
 
 ### AI models
+
+> [!NOTE]
+> The Cofre's OCR of scanned documents runs on Claude through this same gateway, from the Casos Worker. It turns on when `providers` lists `"anthropic"`, the gateway is in the deployment's own account, and an Anthropic key is stored on the gateway (dashboard → AI Gateway → your gateway → Provider keys). `casos.ocrModel` picks the model. See the [Casos README](../lume-os/packages/gatekeeper-casos/README.md#cofre-documents-per-case).
 
 Every provider, Workers AI included, is reached through [AI Gateway](https://developers.cloudflare.com/ai-gateway/). The transport is the Workshop's `WORKERS_AI` binding, which is pre-authenticated inside your own account — so the default configuration needs **no API token at all**:
 
@@ -231,3 +236,18 @@ Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflar
 8. If needed, revert that commit and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
 
 Do not update `lume-os/` blindly. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.
+
+## Push notifications
+
+The Agenda's reminders reach lawyers' phones and browsers by Web Push. The deploy sets it up by itself:
+
+- It adds a cron trigger (`*/5 * * * *`) to the Workshop, which collects queued reminders from the gatekeepers and pushes them.
+- On the first deploy it generates a VAPID key pair and stores it as the Workshop secrets `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (through `wrangler secret bulk`, reading from stdin). It never replaces an existing pair: new keys would silently cut off every device that already enabled notifications.
+
+Each lawyer turns notifications on per device in **Perfil → Avisos**, and can opt in on the Agenda page to a daily summary written by the agent in a conversation, which runs on their default model and costs one short agent run per working day. On iPhone and iPad this works only once the Lume is added to the home screen (Share → Adicionar à Tela de Início), which the page explains. To try it locally, export both keys before `pnpm run run-local`; `run-dev-server.ts` passes them through.
+
+## Case-law research (Pesquisa)
+
+Pesquisa needs no configuration. On first use its index starts importing the STJ's open data (every monthly "espelhos de acórdãos" file of each judging body, and the repetitive-appeal themes), one file per alarm; the import takes a while and then checks for new months daily. **Pesquisa → Fontes** (admins) shows the import and runs a test search on every live source.
+
+The STF, STJ SCON and e-SAJ courts are searched live, and the e-SAJ courts (TJSP, TJAC, TJAL, TJAM, TJCE, TJMS) always through [Browser Rendering](https://developers.cloudflare.com/browser-rendering/), located in Brazil, because their search requires reCAPTCHA. Browser Rendering is billed by browser time; searches are cached for a day. Court sites change and some block automated access: a source that fails shows as "indisponível" and never as "no precedent", and the diagnostic is where to spot it.

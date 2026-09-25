@@ -1,5 +1,12 @@
 import { ArrowLeft, MagnifyingGlass, Plus, Sparkle, Trash } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Field, Select, TextArea, TextInput, lines, messageOf } from "./controles";
+import Documentos, { type DocumentosClient } from "./Documentos";
+import ModeloEscritorio, { type ModeloClient } from "./ModeloEscritorio";
+import { formatarDataComDia } from "../src/agenda/calendario";
+import type { Compromisso } from "../src/agenda/types";
+import type { JulgadoSalvo } from "../src/pesquisa/types";
+import { PJE_LIMITE_PADRAO_MB, type Achado, type ConfiguracoesEscritorio } from "../src/cofre/tipos";
 import type {
   AlteracoesCaso,
   AreaCaso,
@@ -12,12 +19,15 @@ import type {
 } from "../src/types";
 
 /** The Casos page's capability, served by `CasosManagementApi`. */
-export type CasosClient = {
+export type CasosClient = DocumentosClient & ModeloClient & {
   list(filtro?: FiltroCasos): Promise<ResumoCaso[]>;
   get(id: string): Promise<Caso | null>;
   create(novo: NovoCaso): Promise<Caso>;
   update(id: string, alteracoes: AlteracoesCaso): Promise<Caso>;
   delete(id: string): Promise<void>;
+  buscarDocumentos(consulta: string): Promise<Achado[]>;
+  compromissosDoCaso(casoId: string): Promise<Compromisso[]>;
+  jurisprudenciaDoCaso(casoId: string): Promise<JulgadoSalvo[]>;
 };
 
 type Props = {
@@ -63,12 +73,32 @@ type View = { mode: "list" } | { mode: "new" } | { mode: "edit"; id: string };
 
 export default function CasosPage({ api, openPrompt }: Props) {
   const [view, setView] = useState<View>({ mode: "list" });
+  const [configuracoes, setConfiguracoes] = useState<ConfiguracoesEscritorio | null>(null);
+  const [admin, setAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([api.configuracoes(), api.ehAdmin()])
+      .then(([config, ehAdmin]) => {
+        if (cancelled) return;
+        setConfiguracoes(config);
+        setAdmin(ehAdmin);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
   if (view.mode === "list") {
     return (
       <CasosList
         api={api}
         onNew={() => setView({ mode: "new" })}
         onOpen={(id) => setView({ mode: "edit", id })}
+        rodape={configuracoes && (
+          <ModeloEscritorio api={api} admin={admin} configuracoes={configuracoes} onChange={setConfiguracoes} />
+        )}
       />
     );
   }
@@ -80,6 +110,7 @@ export default function CasosPage({ api, openPrompt }: Props) {
       onClose={() => setView({ mode: "list" })}
       onSaved={(caso) => setView({ mode: "edit", id: caso.id })}
       openPrompt={openPrompt}
+      limitePjeMb={configuracoes?.pjeLimiteMb ?? PJE_LIMITE_PADRAO_MB}
     />
   );
 }
@@ -88,10 +119,13 @@ function CasosList({
   api,
   onNew,
   onOpen,
+  rodape,
 }: {
   api: CasosClient;
   onNew: () => void;
   onOpen: (id: string) => void;
+  /** Rendered under the list: the firm's template and PJe settings. */
+  rodape?: ReactNode;
 }) {
   const [filter, setFilter] = useState<Filter>("ativo");
   const [query, setQuery] = useState("");
@@ -99,6 +133,7 @@ function CasosList({
   const [casos, setCasos] = useState<ResumoCaso[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [achados, setAchados] = useState<Achado[]>([]);
   const request = useRef(0);
 
   useEffect(() => {
@@ -114,8 +149,15 @@ function CasosList({
       const filtro: FiltroCasos = {};
       if (filter !== "todos") filtro.status = filter;
       if (debouncedQuery) filtro.busca = debouncedQuery;
-      const list = await api.list(filtro);
-      if (epoch === request.current) setCasos(list);
+      // Content search runs across every case, whatever the status filter.
+      const [list, encontrados] = await Promise.all([
+        api.list(filtro),
+        debouncedQuery ? api.buscarDocumentos(debouncedQuery) : Promise.resolve([]),
+      ]);
+      if (epoch === request.current) {
+        setCasos(list);
+        setAchados(encontrados);
+      }
     } catch (caught) {
       if (epoch === request.current) setError(messageOf(caught));
     } finally {
@@ -182,7 +224,7 @@ function CasosList({
         </p>
       ) : loading && casos.length === 0 ? (
         <p className="text-sm text-kumo-subtle">Carregando…</p>
-      ) : casos.length === 0 ? (
+      ) : casos.length === 0 && achados.length > 0 ? null : casos.length === 0 ? (
         <div className="border border-dashed border-kumo-line px-6 py-10 text-center text-sm text-kumo-subtle">
           {debouncedQuery || filter !== "ativo"
             ? "Nenhum caso encontrado."
@@ -213,7 +255,38 @@ function CasosList({
           ))}
         </ul>
       )}
+
+      {achados.length > 0 && (
+        <section aria-label="Nos documentos" className="flex flex-col gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Nos documentos</p>
+          <ul className="flex flex-col border-t border-kumo-line">
+            {achados.map((achado) => (
+              <li key={achado.documentoId}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(achado.casoId)}
+                  className="flex w-full flex-col gap-1 border-b border-kumo-line px-2 py-3 text-left hover:bg-kumo-tint"
+                >
+                  <span className="truncate text-sm">{achado.nome}</span>
+                  <span className="text-sm text-kumo-subtle">{destacar(achado.trecho)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {rodape}
     </main>
+  );
+}
+
+/** Renders a search snippet, turning the «» the index puts around matches into bold text. */
+export function destacar(trecho: string): ReactNode[] {
+  return trecho.split(/(«[^»]*»)/g).map((parte, i) =>
+    parte.startsWith("«") && parte.endsWith("»")
+      ? <strong key={i} className="font-medium text-kumo-default">{parte.slice(1, -1)}</strong>
+      : parte,
   );
 }
 
@@ -288,12 +361,14 @@ function CasoEditor({
   onClose,
   onSaved,
   openPrompt,
+  limitePjeMb,
 }: {
   api: CasosClient;
   id?: string;
   onClose: () => void;
   onSaved: (caso: Caso) => void;
   openPrompt: (prompt: string) => void | Promise<void>;
+  limitePjeMb: number;
 }) {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [saved, setSaved] = useState<Caso | null>(null);
@@ -467,75 +542,88 @@ function CasoEditor({
           </button>
         </div>
       </div>
+
+      {saved && <PrazosDoCaso api={api} casoId={saved.id} />}
+      {saved && <JurisprudenciaDoCaso api={api} casoId={saved.id} />}
+      {saved && <Documentos api={api} casoId={saved.id} limitePjeMb={limitePjeMb} />}
     </main>
   );
 }
 
-function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
+const TIPO_COMPROMISSO: Record<Compromisso["tipo"], string> = {
+  prazo: "Prazo",
+  audiencia: "Audiência",
+  tarefa: "Tarefa",
+  reuniao: "Reunião",
+};
+
+/** The case's pending deadlines and hearings, read-only: they are managed in the Agenda. */
+function PrazosDoCaso({ api, casoId }: { api: CasosClient; casoId: string }) {
+  const [itens, setItens] = useState<Compromisso[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.compromissosDoCaso(casoId).then((lista) => !cancelled && setItens(lista)).catch(() => !cancelled && setItens([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [api, casoId]);
+  if (!itens) return null;
   return (
-    <label className={`flex flex-col gap-1.5 ${wide ? "sm:col-span-2" : ""}`}>
-      <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-kumo-subtle">{label}</span>
-      {children}
-    </label>
+    <section aria-label="Prazos e audiências" className="flex flex-col gap-2 border-t border-kumo-line pt-6">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Prazos e audiências</p>
+      {itens.length === 0 ? (
+        <p className="text-sm text-kumo-subtle">Nada pendente. Cadastre prazos e audiências na Agenda.</p>
+      ) : (
+        <ul className="flex flex-col border-t border-kumo-line">
+          {itens.map((c) => (
+            <li key={c.id} className="flex gap-3 border-b border-kumo-line px-2 py-2 text-sm">
+              <span className="w-28 shrink-0 font-mono text-[11px] uppercase tracking-[0.06em] text-kumo-subtle">
+                {TIPO_COMPROMISSO[c.tipo]}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{c.titulo}</span>
+              <span className="text-kumo-subtle">{formatarDataComDia(c.data)}{c.hora ? ` às ${c.hora}` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
-const CONTROL = "w-full border border-kumo-line bg-kumo-control px-3 py-2 text-sm outline-none focus:border-kumo-ring";
-
-function TextInput(props: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
+/** Decisions saved to the case from Pesquisa, read-only. */
+function JurisprudenciaDoCaso({ api, casoId }: { api: CasosClient; casoId: string }) {
+  const [itens, setItens] = useState<JulgadoSalvo[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.jurisprudenciaDoCaso(casoId).then((lista) => !cancelled && setItens(lista)).catch(() => !cancelled && setItens([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [api, casoId]);
+  if (!itens) return null;
   return (
-    <input
-      className={CONTROL}
-      value={props.value}
-      placeholder={props.placeholder}
-      onChange={(event) => props.onChange(event.target.value)}
-    />
+    <section aria-label="Jurisprudência salva" className="flex flex-col gap-2 border-t border-kumo-line pt-6">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Jurisprudência salva</p>
+      {itens.length === 0 ? (
+        <p className="text-sm text-kumo-subtle">Nenhuma decisão salva. Salve decisões pela página Pesquisa ou peça ao agente.</p>
+      ) : (
+        <ul className="flex flex-col border-t border-kumo-line">
+          {itens.map(({ julgado: j, nota }) => (
+            <li key={j.id} className="flex flex-col gap-1 border-b border-kumo-line px-2 py-2 text-sm">
+              <a href={j.url} target="_blank" rel="noopener noreferrer" className="text-kumo-link">
+                {j.tribunal} · {j.tipo === "tema" ? `Tema ${j.numero}` : `${j.classe} ${j.numero}`}
+                {j.relator ? ` · Rel. ${j.relator}` : ""}
+                {j.dataJulgamento ? ` · j. ${j.dataJulgamento.split("-").toReversed().join("/")}` : ""}
+              </a>
+              {nota && <span className="text-kumo-subtle">{nota}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
-}
-
-function TextArea(props: { value: string; onChange: (value: string) => void; rows: number }) {
-  return (
-    <textarea
-      className={`${CONTROL} resize-y`}
-      rows={props.rows}
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
-    />
-  );
-}
-
-function Select<T extends string>(props: {
-  value: T;
-  onChange: (value: T) => void;
-  options: [T, string][];
-}) {
-  return (
-    <select
-      className={CONTROL}
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value as T)}
-    >
-      {props.options.map(([value, label]) => (
-        <option key={value} value={value}>
-          {label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function lines(text: string): string[] {
-  return text.split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
 function formatDate(epochMs: number): string {
   return new Date(epochMs).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-}
-
-function messageOf(caught: unknown): string {
-  return caught instanceof Error ? caught.message : String(caught);
 }

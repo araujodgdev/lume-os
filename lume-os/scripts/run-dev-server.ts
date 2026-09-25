@@ -487,6 +487,8 @@ for (const gk of gatekeepers) {
     // needs the token even when the binding is present.
     "CF_AI_GATEWAY", "CF_AI_GATEWAY_PROVIDERS", "CF_AI_GATEWAY_ACCOUNT_ID",
     "CF_AI_GATEWAY_API_TOKEN", "CF_AI_GATEWAY_USE_BINDING",
+    // (Lume) Web Push keys, to try notifications locally.
+    "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY",
   ];
   // OAuth app credentials (GOOGLE_/GITHUB_/CLOUDFLARE_OAUTH_*) are NOT passed to the backend anymore;
   // they are injected into the gatekeeper Workers (see SHARED_GATEKEEPER_CREDS below).
@@ -506,6 +508,15 @@ for (const gk of gatekeepers) {
       binding.props = { sharingDomain: "dev" };
     }
     config.services.push(binding);
+  }
+  // (Lume) Vendors a gatekeeper Worker serves under an entrypoint of their own: the Agenda lives
+  // in the Casos Worker but is a separate vendor with its own page and agent binding.
+  const EXTRA_VENDORS: ServiceBinding[] = [
+    { binding: "GATEKEEPER_AGENDA", service: "gatekeeper-casos", entrypoint: "AgendaVendor" },
+    { binding: "GATEKEEPER_PESQUISA", service: "gatekeeper-casos", entrypoint: "PesquisaVendor" },
+  ];
+  for (const extra of EXTRA_VENDORS) {
+    if (gatekeepers.some((gk) => gk.name === extra.service)) config.services.push(extra);
   }
 
   if (useWorkersAi) {

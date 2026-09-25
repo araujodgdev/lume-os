@@ -37,14 +37,35 @@ import {
   type DadosCaso,
 } from "./caso.js";
 import { normalizeCnj } from "./cnj.js";
+import { agendaFor, type AgendaStore } from "./agenda/store.js";
+import { verificarTexto } from "./pesquisa/busca.js";
+import { indiceFor, type IndiceJurisprudencia } from "./pesquisa/indice.js";
+import type { JulgadoSalvo } from "./pesquisa/types.js";
+import type { Compromisso } from "./agenda/types.js";
+import { montarCampos } from "./pecas/campos.js";
+import { gerarDocx } from "./pecas/modelo.js";
 import type { CaseRegistry } from "./registry.js";
+import type {
+  Achado,
+  ConfiguracoesEscritorio,
+  DocumentoCofre,
+  DocumentVault,
+  InfoModelo,
+  JanelaTexto,
+  UploadIniciado,
+} from "./cofre/vault.js";
 import type {
   AlteracoesCaso,
   Caso,
   CasosSession,
+  DocumentoInfo,
   FiltroCasos,
+  NovaPeca,
   NovoCaso,
+  PecaGerada,
+  ResultadoBusca,
   ResumoCaso,
+  TrechoDocumento,
 } from "./types.js";
 import TYPES_CODE from "./types.txt";
 import APP_HTML from "./generated/app.txt";
@@ -70,6 +91,10 @@ const DESCRIPTION_RESUMO_LIMIT = 4_000;
 
 const CREATE_KIND: ActionKind = { tag: "casos.create", label: "Criar caso" };
 const UPDATE_KIND: ActionKind = { tag: "casos.update", label: "Alterar caso" };
+const PECA_KIND: ActionKind = { tag: "casos.peca", label: "Salvar peça gerada no Cofre" };
+
+/** Largest HTML a piece may be generated from (the Documentos format embeds images inline). */
+const MAX_HTML_PECA = 20 * 1024 * 1024;
 
 type CasosProps = { sharingDomain: string };
 
@@ -78,9 +103,12 @@ type Proposta =
   | { id: number; kind: "create"; casoId: string; dados: DadosCaso; submittedAt: number }
   | { id: number; kind: "update"; casoId: string; alteracoes: Alteracoes; submittedAt: number };
 
+/** A generated piece waiting for approval, as the facet stores it. */
+type PecaPendente = { id: number; casoId: string; nome: string; tamanho: number; submittedAt: number };
+
 type PropostaRow = {
   id: number;
-  kind: "create" | "update";
+  kind: "create" | "update" | "peca";
   caso_id: string;
   payload: string;
   submitted_at: number;
@@ -88,11 +116,31 @@ type PropostaRow = {
   anterior: string | null;
 };
 
-function registryFor(
+export function registryFor(
   exports: Cloudflare.Exports,
   sharingDomain: string,
 ): DurableObjectStub<CaseRegistry> {
   return exports.CaseRegistry.getByName(sharingDomain);
+}
+
+function vaultFor(exports: Cloudflare.Exports, sharingDomain: string): DurableObjectStub<DocumentVault> {
+  return exports.DocumentVault.getByName(sharingDomain);
+}
+
+/** The agent's view of a vault document: OCR in progress is just "processando". */
+export function documentoInfo(doc: DocumentoCofre): DocumentoInfo {
+  const info: DocumentoInfo = {
+    id: doc.id,
+    casoId: doc.casoId,
+    nome: doc.nome,
+    tipo: doc.mime,
+    tamanho: doc.tamanho,
+    status: doc.status === "ocr" || doc.status === "enviando" ? "processando" : doc.status,
+    criadoEm: doc.criadoEm,
+  };
+  if (doc.paginas !== undefined) info.paginas = doc.paginas;
+  if (doc.aviso) info.aviso = doc.aviso;
+  return info;
 }
 
 /**
@@ -131,6 +179,9 @@ export type CasosBackend = {
   proposeUpdate(
     queue: NativeRpcStub<ApprovalQueue>, casoId: string, alteracoes: Alteracoes,
   ): Promise<void>;
+  proposePeca(queue: NativeRpcStub<ApprovalQueue>, peca: NovaPeca): Promise<PecaGerada>;
+  pecasPendentes(casoId: string): PecaPendente[];
+  vault(): DurableObjectStub<DocumentVault>;
 };
 
 @validateRpc()
@@ -188,6 +239,63 @@ export class CasosSessionImpl extends RpcTarget implements CasosSession {
     return this.#gatekeeper.proposeUpdate(this.#approvalQueue, id, validateAlteracoes(alteracoes));
   }
 
+  /** Lists a case's documents. */
+  async listDocumentos(casoId: string): Promise<DocumentoInfo[]> {
+    // Pieces this workspace generated appear as soon as they are proposed, like any proposal.
+    const pendentes: DocumentoInfo[] = this.#gatekeeper.pecasPendentes(casoId).map((peca) => ({
+      id: `pendente-${peca.id}`,
+      casoId,
+      nome: peca.nome,
+      tipo: TIPO_DOCX,
+      tamanho: peca.tamanho,
+      status: "processando",
+      aviso: "Aguardando aprovação para entrar no Cofre.",
+      criadoEm: peca.submittedAt,
+    }));
+    const docs = [...pendentes, ...(await this.#gatekeeper.vault().listar(casoId)).map(documentoInfo)];
+    await this.#approvalQueue.authorizeObservation({
+      title: "Listar documentos do caso",
+      description: `Listou ${docs.length} documento(s) do caso ${casoId}.`,
+    });
+    return docs;
+  }
+
+  /** Reads a window of a document's text. */
+  async lerDocumento(
+    documentoId: string,
+    janela?: { inicio?: number; limite?: number },
+  ): Promise<TrechoDocumento | null> {
+    const vault = this.#gatekeeper.vault();
+    const doc = await vault.obter(documentoId);
+    const texto: JanelaTexto | null = doc
+      ? await vault.lerTexto(documentoId, janela?.inicio ?? 0, janela?.limite ?? 40_000)
+      : null;
+    await this.#approvalQueue.authorizeObservation({
+      title: doc ? `Ler documento: ${doc.nome}` : "Ler documento inexistente",
+      description: doc && texto
+        ? `Leu os caracteres ${texto.inicio} a ${texto.inicio + texto.texto.length} de ${texto.total} ` +
+          `do documento "${doc.nome}" (${doc.id}).`
+        : `Nenhum documento com id ${documentoId}.`,
+    });
+    return doc && texto ? { documentoId, ...texto } : null;
+  }
+
+  /** Generates a piece in the firm's template and proposes saving it to the case's Cofre. */
+  gerarPeca(peca: NovaPeca): Promise<PecaGerada> {
+    return this.#gatekeeper.proposePeca(this.#approvalQueue, peca);
+  }
+
+  /** Searches the documents' text. */
+  async buscarDocumentos(consulta: string, filtro?: { casoId?: string }): Promise<ResultadoBusca[]> {
+    const achados: Achado[] = await this.#gatekeeper.vault().buscar(consulta, filtro?.casoId);
+    await this.#approvalQueue.authorizeObservation({
+      title: "Buscar nos documentos",
+      description: `Buscou "${consulta}" nos documentos${filtro?.casoId ? ` do caso ${filtro.casoId}` : ""} ` +
+        `e encontrou ${achados.length} documento(s).`,
+    });
+    return achados;
+  }
+
   [Symbol.dispose](): void {
     this.#approvalQueue[Symbol.dispose]?.();
   }
@@ -234,9 +342,12 @@ export class CasosGatekeeper
     return TYPES_CODE;
   }
 
-  /** Case changes always wait for a lawyer, so none are auto-approvable. */
+  /**
+   * Case changes always wait for a lawyer. Saving a generated piece may be auto-approved: it only
+   * adds a document the lawyer asked for, and reverting deletes it.
+   */
   async getAutoApprovableActions(): Promise<ActionKind[]> {
-    return [];
+    return [PECA_KIND];
   }
 
   /** Opens a session for the agent. */
@@ -245,6 +356,9 @@ export class CasosGatekeeper
       simulated: () => this.#simulated(),
       proposeCreate: (queue, dados) => this.#proposeCreate(queue, dados),
       proposeUpdate: (queue, casoId, alteracoes) => this.#proposeUpdate(queue, casoId, alteracoes),
+      proposePeca: (queue, peca) => this.#proposePeca(queue, peca),
+      pecasPendentes: (casoId) => this.#pecasPendentes(casoId),
+      vault: () => vaultFor(this.ctx.exports, this.ctx.props.sharingDomain),
     }, approvalQueue.dup());
   }
 
@@ -253,6 +367,7 @@ export class CasosGatekeeper
     authorizer: NativeRpcStub<ObservationAuthorizer>,
   ): Promise<AgentCatalog | null> {
     const casos = (await this.#simulated()).filter((caso) => caso.status !== "encerrado");
+    const documentos = await vaultFor(this.ctx.exports, this.ctx.props.sharingDomain).contarPorCaso();
     await authorizer.authorizeObservation({
       title: "Listar casos em andamento",
       description: `Listou ${casos.length} caso(s) em andamento do escritório.`,
@@ -267,6 +382,7 @@ export class CasosGatekeeper
           caso.tribunal,
           caso.area,
           caso.status,
+          documentos[caso.id] ? `${documentos[caso.id]} documento(s)` : undefined,
         ].filter(Boolean).join(" · "),
       })),
     );
@@ -283,7 +399,19 @@ export class CasosGatekeeper
     const row = this.#row(action);
     if (!row || row.state !== "pending") throw new Error(`Proposta ${action} não está pendente.`);
     const registry = this.#registry();
-    if (row.kind === "create") {
+    if (row.kind === "peca") {
+      const { nome } = JSON.parse(row.payload) as { nome: string };
+      const objeto = await this.env.COFRE.get(this.#chavePendente(action));
+      if (!objeto) throw new Error("O arquivo da peça gerada não foi encontrado. Peça ao agente para gerá-la de novo.");
+      const doc = await vaultFor(this.ctx.exports, this.ctx.props.sharingDomain)
+        .importarArquivo(row.caso_id, nome, new Uint8Array(await objeto.arrayBuffer()));
+      this.ctx.storage.sql.exec(
+        "UPDATE propostas SET state = 'applied', anterior = ? WHERE id = ?",
+        JSON.stringify({ documentoId: doc.id }),
+        action,
+      );
+      await this.env.COFRE.delete(this.#chavePendente(action));
+    } else if (row.kind === "create") {
       await registry.create(row.caso_id, JSON.parse(row.payload) as DadosCaso);
       this.ctx.storage.sql.exec("UPDATE propostas SET state = 'applied' WHERE id = ?", action);
     } else {
@@ -301,7 +429,10 @@ export class CasosGatekeeper
 
   /** Forgets a rejected proposal, which also drops it from simulated reads. */
   async rejectAction(action: number): Promise<void> {
-    this.ctx.storage.sql.exec("DELETE FROM propostas WHERE id = ? AND state = 'pending'", action);
+    const row = this.#row(action);
+    if (!row || row.state !== "pending") return;
+    if (row.kind === "peca") await this.env.COFRE.delete(this.#chavePendente(action));
+    this.ctx.storage.sql.exec("DELETE FROM propostas WHERE id = ?", action);
   }
 
   /** Undoes an applied proposal: deletes a created case, or restores the overwritten fields. */
@@ -313,7 +444,10 @@ export class CasosGatekeeper
       return { message: "Esta alteração não foi aplicada, então não há o que desfazer." };
     }
     const registry = this.#registry();
-    if (row.kind === "create") {
+    if (row.kind === "peca") {
+      const { documentoId } = JSON.parse(row.anterior ?? "{}") as { documentoId?: string };
+      if (documentoId) await vaultFor(this.ctx.exports, this.ctx.props.sharingDomain).excluir(documentoId);
+    } else if (row.kind === "create") {
       await registry.delete(row.caso_id);
     } else {
       if (!(await registry.get(row.caso_id))) {
@@ -353,7 +487,61 @@ export class CasosGatekeeper
     await queue.submitAction(action, describeUpdate(caso, alteracoes));
   }
 
-  #insert(kind: "create" | "update", casoId: string, payload: unknown): number {
+  /**
+   * Generates a piece from the Documentos HTML in the firm's template (or the built-in one), keeps
+   * the file in R2 until a lawyer decides, and submits saving it to the case's Cofre.
+   */
+  async #proposePeca(queue: NativeRpcStub<ApprovalQueue>, peca: NovaPeca): Promise<PecaGerada> {
+    const titulo = typeof peca?.titulo === "string" ? peca.titulo.trim() : "";
+    if (!titulo || titulo.length > 150) throw new TypeError("Informe um título de até 150 caracteres.");
+    if (typeof peca.html !== "string" || !peca.html.trim()) throw new TypeError("Informe o HTML da peça.");
+    if (peca.html.length > MAX_HTML_PECA) throw new TypeError("A peça é grande demais para gerar em DOCX.");
+    const caso = (await this.#simulated()).find((c) => c.id === peca.casoId);
+    if (!caso) throw new Error(`Caso não encontrado: ${peca.casoId}.`);
+
+    const vault = vaultFor(this.ctx.exports, this.ctx.props.sharingDomain);
+    const [modelo, configuracoes] = await Promise.all([vault.modelo(), vault.configuracoes()]);
+    const bytes = gerarDocx(modelo, peca.html, montarCampos(caso, configuracoes.cidade, new Date()));
+    const nome = `${nomeDeArquivo(titulo)}.docx`;
+    const citacoes = await conferirCitacoes(this.ctx.exports, peca.html);
+    const action = this.#insert("peca", caso.id, { nome, tamanho: bytes.byteLength });
+    await this.env.COFRE.put(this.#chavePendente(action), bytes);
+    await queue.submitAction(action, {
+      title: `Salvar peça no Cofre: ${nome}`,
+      description:
+        `O agente gerou a peça **${nome}** (${Math.max(1, Math.round(bytes.byteLength / 1024))} KB) ` +
+        `para o caso "${caso.titulo}" e propõe salvá-la no Cofre do caso.\n\n` +
+        (modelo
+          ? "Gerada no modelo do escritório, com os campos preenchidos a partir do caso."
+          : "O escritório ainda não enviou um modelo, então foi usado o padrão forense (Times New Roman 12, espaçamento 1,5).") +
+        `\n\n${citacoes.texto}`,
+      implementsRevert: true,
+      // A piece citing case law that does not check out always waits for a lawyer.
+      autoApprovable: !citacoes.problemas,
+      actionKind: PECA_KIND,
+    });
+    return { casoId: caso.id, nome, tamanho: bytes.byteLength };
+  }
+
+  #pecasPendentes(casoId: string): PecaPendente[] {
+    return this.ctx.storage.sql
+      .exec<PropostaRow>(
+        "SELECT * FROM propostas WHERE state = 'pending' AND kind = 'peca' AND caso_id = ? ORDER BY id DESC",
+        casoId,
+      )
+      .toArray()
+      .map((row) => {
+        const { nome, tamanho } = JSON.parse(row.payload) as { nome: string; tamanho: number };
+        return { id: row.id, casoId: row.caso_id, nome, tamanho, submittedAt: row.submitted_at };
+      });
+  }
+
+  /** Where a generated piece waits for approval: namespaced by this facet, keyed by action. */
+  #chavePendente(action: number): string {
+    return `pendentes/${this.ctx.id.toString()}/${action}.docx`;
+  }
+
+  #insert(kind: PropostaRow["kind"], casoId: string, payload: unknown): number {
     return this.ctx.storage.sql
       .exec<{ id: number }>(
         "INSERT INTO propostas (kind, caso_id, payload, submitted_at) VALUES (?, ?, ?, ?) RETURNING id",
@@ -367,7 +555,7 @@ export class CasosGatekeeper
 
   #pending(): Proposta[] {
     return this.ctx.storage.sql
-      .exec<PropostaRow>("SELECT * FROM propostas WHERE state = 'pending' ORDER BY id")
+      .exec<PropostaRow>("SELECT * FROM propostas WHERE state = 'pending' AND kind != 'peca' ORDER BY id")
       .toArray()
       .map((row) =>
         row.kind === "create"
@@ -387,14 +575,67 @@ export class CasosGatekeeper
   }
 }
 
-/** What the Casos page may do: lawyers edit the registry directly, without approvals. */
+/** What the Casos page may do: lawyers edit the registry and the vault directly, without approvals. */
 @validateRpc()
 export class CasosManagementApi extends RpcTarget {
   readonly #registry: DurableObjectStub<CaseRegistry>;
+  readonly #vault: DurableObjectStub<DocumentVault>;
+  readonly #agenda: DurableObjectStub<AgendaStore>;
+  readonly #indice: DurableObjectStub<IndiceJurisprudencia>;
+  readonly #dominio: string;
+  readonly #admin: boolean;
 
-  constructor(registry: DurableObjectStub<CaseRegistry>) {
+  constructor(
+    registry: DurableObjectStub<CaseRegistry>,
+    vault: DurableObjectStub<DocumentVault>,
+    agenda: DurableObjectStub<AgendaStore>,
+    jurisprudencia: { indice: DurableObjectStub<IndiceJurisprudencia>; dominio: string },
+    admin: boolean,
+  ) {
     super();
     this.#registry = registry;
+    this.#vault = vault;
+    this.#agenda = agenda;
+    this.#indice = jurisprudencia.indice;
+    this.#dominio = jurisprudencia.dominio;
+    this.#admin = admin;
+  }
+
+  /** Whether this page may change the firm's settings and template. */
+  ehAdmin(): boolean {
+    return this.#admin;
+  }
+
+  /** The firm's settings and template description. */
+  configuracoes(): Promise<ConfiguracoesEscritorio> {
+    return this.#vault.configuracoes();
+  }
+
+  /** Changes the firm's settings. Admins only. */
+  salvarConfiguracoes(input: { pjeLimiteMb?: number; cidade?: string }): Promise<ConfiguracoesEscritorio> {
+    this.#exigirAdmin();
+    return this.#vault.salvarConfiguracoes(input);
+  }
+
+  /** Replaces the firm's piece template. Admins only. */
+  salvarModelo(bytes: Uint8Array): Promise<InfoModelo> {
+    this.#exigirAdmin();
+    return this.#vault.salvarModelo(bytes);
+  }
+
+  /** Goes back to the built-in template. Admins only. */
+  removerModelo(): Promise<void> {
+    this.#exigirAdmin();
+    return this.#vault.removerModelo();
+  }
+
+  /** The firm's template, for checking it in Word. */
+  baixarModelo(): Promise<Uint8Array | null> {
+    return this.#vault.modelo();
+  }
+
+  #exigirAdmin(): void {
+    if (!this.#admin) throw new Error("Só administradores podem mudar o modelo e as configurações do escritório.");
   }
 
   /** Cases matching `filtro`, most recently changed first, without their `resumo`. */
@@ -418,9 +659,67 @@ export class CasosManagementApi extends RpcTarget {
     return (await this.#registry.update(id, validateAlteracoes(alteracoes))).caso;
   }
 
-  /** Deletes a case. */
+  /** Deletes a case, every document in it and its calendar entries. */
   async delete(id: string): Promise<void> {
+    await this.#vault.excluirCaso(id);
+    await this.#agenda.excluirDoCaso(id);
     await this.#registry.delete(id);
+  }
+
+  /** Case law saved to a case. */
+  jurisprudenciaDoCaso(casoId: string): Promise<JulgadoSalvo[]> {
+    return this.#indice.salvos(this.#dominio, casoId);
+  }
+
+  /** A case's pending calendar entries, soonest first. */
+  compromissosDoCaso(casoId: string): Promise<Compromisso[]> {
+    return this.#agenda.consultar({ casoId, status: "pendente" });
+  }
+
+  /** A case's documents, newest first. */
+  documentos(casoId: string): Promise<DocumentoCofre[]> {
+    return this.#vault.listar(casoId);
+  }
+
+  /** Opens an upload to an existing case. */
+  async iniciarUpload(casoId: string, arquivo: { nome: string; tamanho: number }): Promise<UploadIniciado> {
+    if (!(await this.#registry.get(casoId))) throw new Error("Caso não encontrado.");
+    return this.#vault.iniciarUpload(casoId, arquivo);
+  }
+
+  /** Sends one chunk of an upload. */
+  enviarParte(uploadId: string, numero: number, bytes: Uint8Array): Promise<void> {
+    return this.#vault.enviarParte(uploadId, numero, bytes);
+  }
+
+  /** Completes an upload and queues the document for reading. */
+  concluirUpload(uploadId: string): Promise<DocumentoCofre> {
+    return this.#vault.concluirUpload(uploadId);
+  }
+
+  /** Abandons an upload. */
+  cancelarUpload(uploadId: string): Promise<void> {
+    return this.#vault.cancelarUpload(uploadId);
+  }
+
+  /** A window of a document's extracted text, to check what was read. */
+  textoDocumento(id: string, inicio?: number): Promise<JanelaTexto | null> {
+    return this.#vault.lerTexto(id, inicio ?? 0, 100_000);
+  }
+
+  /** One chunk of a document's original file, for downloading. */
+  baixarParte(id: string, numero: number): Promise<Uint8Array> {
+    return this.#vault.baixarParte(id, numero);
+  }
+
+  /** Deletes a document. */
+  excluirDocumento(id: string): Promise<void> {
+    return this.#vault.excluir(id);
+  }
+
+  /** Full-text search across every case's documents. */
+  buscarDocumentos(consulta: string): Promise<Achado[]> {
+    return this.#vault.buscar(consulta);
   }
 }
 
@@ -449,10 +748,19 @@ export class CasosAccount
     return this.ctx.exports.CasosGatekeeper({ props: this.ctx.props });
   }
 
-  /** Opens the Casos page. Every lawyer may edit, so `isAdmin` changes nothing. */
-  async startAppUi(_context: AppUiContext): Promise<GatekeeperUiFrame> {
+  /**
+   * Opens the Casos page. Every lawyer edits cases and documents; only admins change the firm's
+   * template and settings. `isAdmin` comes fresh from the Workshop on every open.
+   */
+  async startAppUi(context: AppUiContext): Promise<GatekeeperUiFrame> {
     const ui = new NativeRpcStub(
-      new CasosManagementApi(registryFor(this.ctx.exports, this.ctx.props.sharingDomain)),
+      new CasosManagementApi(
+        registryFor(this.ctx.exports, this.ctx.props.sharingDomain),
+        vaultFor(this.ctx.exports, this.ctx.props.sharingDomain),
+        agendaFor(this.ctx.exports, this.ctx.props.sharingDomain),
+        { indice: indiceFor(this.ctx.exports), dominio: this.ctx.props.sharingDomain },
+        context.isAdmin === true,
+      ),
     );
     return { iframeHtml: APP_HTML, ui };
   }
@@ -619,4 +927,41 @@ function formatValue(key: string, value: unknown): string {
 
 function quote(text: string): string {
   return text.split("\n").map((line) => `> ${line}`).join("\n");
+}
+
+const TIPO_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/** How long a piece's citation check may take before the approval goes out without it. */
+const LIMITE_VERIFICACAO_MS = 25_000;
+
+/**
+ * Checks the case law a piece cites, for its approval description. Never blocks generating the
+ * piece: past the time limit, or on error, the description says the check did not run.
+ */
+async function conferirCitacoes(exports: Cloudflare.Exports, html: string): Promise<{ texto: string; problemas: boolean }> {
+  try {
+    const relatorio = await Promise.race([
+      verificarTexto(exports, html),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), LIMITE_VERIFICACAO_MS)),
+    ]);
+    if (!relatorio) return { texto: "**Citações de jurisprudência:** a conferência demorou demais; use a página Pesquisa → Verificar citações.", problemas: false };
+    if (relatorio.citacoes.length === 0) return { texto: "**Citações de jurisprudência:** nenhuma.", problemas: false };
+    const rotulo = { confirmada: "confirmada", divergente: "DIVERGENTE", nao_encontrada: "NÃO ENCONTRADA", nao_verificavel: "não verificável" } as const;
+    const linhas = relatorio.citacoes.map((c) => `- ${c.trecho}: **${rotulo[c.status]}**. ${c.observacao}`);
+    const problemas = relatorio.citacoes.some((c) => c.status === "divergente" || c.status === "nao_encontrada");
+    return { texto: `**Citações de jurisprudência:** ${relatorio.resumo}\n\n${linhas.join("\n")}`, problemas };
+  } catch {
+    return { texto: "**Citações de jurisprudência:** não foi possível conferir agora.", problemas: false };
+  }
+}
+
+/** A safe file name from a piece title: no path separators or control characters, at most 120 chars. */
+export function nomeDeArquivo(titulo: string): string {
+  const limpo = [...titulo.normalize("NFC")]
+    .map((c) => (/[\\/:*?"<>|]/.test(c) || c.charCodeAt(0) < 0x20 ? " " : c))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+  return limpo || "peca";
 }

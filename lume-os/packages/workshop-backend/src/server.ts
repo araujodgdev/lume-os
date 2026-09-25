@@ -30,6 +30,8 @@ import { serveSiteLogo, SITE_LOGO_PATH } from "./site-logo.js";
 import { createWorkshopLogger } from "./observability";
 import { wrapDoStubForTelemetry } from "./do-telemetry";
 
+import { conversationStarter, pollGatekeeperNotifications, vapidConfig, type OverseerNamespace } from "./push-notifications.js";
+
 const logger = createWorkshopLogger("workshop.server");
 
 // Set once we've asked the AdminSettings DO to install the bundled format blueprints (see the
@@ -571,6 +573,29 @@ class AuthenticatedApiImpl extends RpcTarget implements AuthenticatedApi {
         }));
   }
 
+  // --- (Lume) Push notifications ---
+
+  async getPushPublicKey(): Promise<string | null> {
+    return vapidConfig(this.env)?.keys.publicKey ?? null;
+  }
+
+  registerPushSubscription(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
+    return this.#user.registerPushSubscription(subscription);
+  }
+
+  removePushSubscription(endpoint: string): Promise<void> {
+    return this.#user.removePushSubscription(endpoint);
+  }
+
+  sendTestPush(): Promise<number> {
+    return this.#user.deliverNotification({
+      title: "Lume",
+      body: "Os avisos estão funcionando neste dispositivo.",
+      url: "/gatekeepers/agenda",
+      tag: "lume-teste",
+    });
+  }
+
   async getGatekeeperApp(id: string): Promise<GatekeeperUiFrame | null> {
     // Self-sufficient: listProvidedAccounts provisions auto-provisioned accounts first (idempotent),
     // so a direct URL load of /gatekeepers/$id works without racing the Header's listGatekeeperApps.
@@ -579,7 +604,10 @@ class AuthenticatedApiImpl extends RpcTarget implements AuthenticatedApi {
     let app = accounts.find((account: (typeof accounts)[number]) => account.vendorId === id && account.description.providesUi);
     if (!app) return null;
     // isAdmin is supplied fresh per open so admin-gated features reflect the user's current status.
-    return user.startAccountAppUi(app.accountId, { isAdmin: this.#isAdmin() });
+    return user.startAccountAppUi(app.accountId, {
+      isAdmin: this.#isAdmin(),
+      ...(this.#userId.name ? { username: this.#userId.name } : {}),
+    });
   }
 
   // --- Deployment admin ---
@@ -866,7 +894,14 @@ export default {
     }
 
     return new Response("Not Found", {status: 404});
-  }
+  },
+
+  // (Lume) Every few minutes: deliver the reminders gatekeepers such as the Agenda have queued.
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(pollGatekeeperNotifications(env, ctx.exports.UserDurableObject,
+        conversationStarter(ctx.exports.UserDurableObject,
+            ctx.exports.OverseerDurableObject as unknown as OverseerNamespace)));
+  },
 } satisfies ExportedHandler<Env>;
 
 // Extend Cap'n Web's RpcSessionOptions with an AbortSignal.

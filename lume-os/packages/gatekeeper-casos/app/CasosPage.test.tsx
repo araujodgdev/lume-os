@@ -29,6 +29,23 @@ function client(overrides: Partial<CasosClient> = {}): CasosClient {
     create: vi.fn<CasosClient["create"]>(async () => caso),
     update: vi.fn<CasosClient["update"]>(async () => caso),
     delete: vi.fn<CasosClient["delete"]>(async () => {}),
+    buscarDocumentos: vi.fn<CasosClient["buscarDocumentos"]>(async () => []),
+    documentos: vi.fn<CasosClient["documentos"]>(async () => []),
+    iniciarUpload: vi.fn<CasosClient["iniciarUpload"]>(),
+    enviarParte: vi.fn<CasosClient["enviarParte"]>(),
+    concluirUpload: vi.fn<CasosClient["concluirUpload"]>(),
+    cancelarUpload: vi.fn<CasosClient["cancelarUpload"]>(),
+    textoDocumento: vi.fn<CasosClient["textoDocumento"]>(async () => null),
+    baixarParte: vi.fn<CasosClient["baixarParte"]>(),
+    excluirDocumento: vi.fn<CasosClient["excluirDocumento"]>(async () => {}),
+    ehAdmin: vi.fn<CasosClient["ehAdmin"]>(async () => false),
+    configuracoes: vi.fn<CasosClient["configuracoes"]>(async () => ({ pjeLimiteMb: 5, cidade: "", modelo: null })),
+    salvarConfiguracoes: vi.fn<CasosClient["salvarConfiguracoes"]>(),
+    salvarModelo: vi.fn<CasosClient["salvarModelo"]>(),
+    removerModelo: vi.fn<CasosClient["removerModelo"]>(),
+    baixarModelo: vi.fn<CasosClient["baixarModelo"]>(async () => null),
+    compromissosDoCaso: vi.fn<CasosClient["compromissosDoCaso"]>(async () => []),
+    jurisprudenciaDoCaso: vi.fn<CasosClient["jurisprudenciaDoCaso"]>(async () => []),
     ...overrides,
   };
 }
@@ -96,6 +113,27 @@ describe("CasosPage", () => {
     });
     await act(async () => button("Cadastrar caso").click());
     expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ titulo: "Novo" }));
+  });
+
+  it("shows document hits under the case list and opens their case", async () => {
+    const api = client({
+      buscarDocumentos: vi.fn<CasosClient["buscarDocumentos"]>(async () => [
+        { documentoId: "d1", casoId: "c1", nome: "sentenca.pdf", trecho: "…julgo «procedente» o pedido…" },
+      ]),
+    });
+    const page = await render(api);
+    const busca = page.querySelector<HTMLInputElement>('input[aria-label="Buscar casos"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(busca, "procedente");
+      busca.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+    expect(api.buscarDocumentos).toHaveBeenCalledWith("procedente");
+    expect(page.querySelector("strong")?.textContent).toBe("procedente");
+    await act(async () => button("sentenca.pdf").click());
+    expect(api.get).toHaveBeenCalledWith("c1");
   });
 
   it("shows the empty state", async () => {

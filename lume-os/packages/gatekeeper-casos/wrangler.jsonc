@@ -7,8 +7,9 @@
     "watch_dir": "src",
   },
   "compatibility_date": "2026-02-02",
-  // The Workshop stores the account capability createAccount() mints.
-  "compatibility_flags": ["allow_irrevocable_stub_storage", "nodejs_als"],
+  // The Workshop stores the account capability createAccount() mints. nodejs_compat: Browser
+  // Rendering's puppeteer imports node:buffer.
+  "compatibility_flags": ["allow_irrevocable_stub_storage", "nodejs_als", "nodejs_compat"],
   "rules": [{ "type": "Text", "globs": ["**/*.txt"], "fallthrough": false }],
   // Both Durable Objects are reached through ctx.exports; no binding is required.
   "migrations": [
@@ -16,7 +17,22 @@
       "tag": "v1",
       "new_sqlite_classes": ["CaseRegistry", "CasosGatekeeper"],
     },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["DocumentVault"],
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["AgendaStore", "AgendaGatekeeper"],
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": ["IndiceJurisprudencia", "BuscaAoVivo", "PesquisaGatekeeper"],
+    },
   ],
+  // The Cofre's files. The starter's deploy provisions the bucket (or binds resources.cofreBucket)
+  // and adds the Workers AI binding, which local development runs without.
+  "r2_buckets": [{ "binding": "COFRE", "bucket_name": "lume-cofre-dev" }],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,

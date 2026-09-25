@@ -127,10 +127,17 @@ export interface DeploymentConfig {
   /** Private explicit-issue destination. */
   errorReporting: { enabled: boolean; environment?: string; release?: string | null };
   /** Workshop KV/R2. `null` requests Wrangler automatic provisioning. */
+  /** Casos Gatekeeper settings. Optional; every field has a default. */
+  casos?: {
+    /** Claude model that transcribes scanned documents. Default "claude-opus-5". */
+    ocrModel?: string;
+  };
   resources: {
     blueprintsKvNamespaceId: string | null;
     avatarsKvNamespaceId: string | null;
     blueprintContentBucket: string | null;
+    /** The Cofre's R2 bucket, holding case documents. */
+    cofreBucket: string | null;
   };
   observability: DeploymentObservabilityConfig;
 }
@@ -175,6 +182,8 @@ export type ProdWranglerConfig =
     ai?: BindingDecl;
     /** Secrets wrangler refuses to deploy without. Emitted only when one is genuinely needed. */
     secrets?: { required: string[] };
+    /** Cron triggers. */
+    triggers?: { crons: string[] };
     /** Artifacts namespaces. An array, unlike upstream's single-binding declaration. */
     artifacts?: { binding: string; namespace: string }[];
   };

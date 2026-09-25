@@ -5,6 +5,10 @@
 // `create()` and `update()` propose changes that a lawyer reviews. Later reads already reflect a
 // proposal, so keep working without waiting for it; a proposal the lawyer rejects disappears.
 //
+// Each case can hold documents (petitions, contracts, decisions, scanned records) whose text the firm
+// has already extracted, OCR included. Search them with `buscarDocumentos()` and read them with
+// `lerDocumento()` before relying on what they say.
+//
 // Case numbers use the CNJ unified format `NNNNNNN-DD.AAAA.J.TR.OOOO`. Methods that take one accept
 // it with or without punctuation and reject numbers whose check digits do not match.
 
@@ -96,6 +100,80 @@ export interface NovoCaso {
  */
 export type AlteracoesCaso = Partial<Omit<Caso, "id" | "criadoEm" | "atualizadoEm">>;
 
+/** Where a document's text stands. */
+export type StatusDocumento =
+  /** Still being read (OCR can take minutes for long scans). */
+  | "processando"
+  /** Its text can be read and searched. */
+  | "pronto"
+  /** It holds no readable text, e.g. a scan while OCR is unavailable. */
+  | "sem_texto"
+  /** Reading it failed. */
+  | "erro";
+
+/** A document stored in a case. */
+export interface DocumentoInfo {
+  /** Pass to `lerDocumento()`. */
+  id: string;
+  casoId: string;
+  /** File name, e.g. "peticao-inicial.pdf". */
+  nome: string;
+  /** MIME type of the original file. */
+  tipo: string;
+  /** Size of the original file, in bytes. */
+  tamanho: number;
+  status: StatusDocumento;
+  /** Page count, for PDFs. */
+  paginas?: number;
+  /** A caveat about the text, e.g. pages OCR could not transcribe. */
+  aviso?: string;
+  /** Upload time, epoch milliseconds. */
+  criadoEm: number;
+}
+
+/** A window of a document's text. Scanned pages are marked "--- Página N ---". */
+export interface TrechoDocumento {
+  documentoId: string;
+  texto: string;
+  /** Character offset of `texto` within the whole text. */
+  inicio: number;
+  /** Length of the whole text, in characters. */
+  total: number;
+  /** True when this window reaches the end of the text. */
+  fim: boolean;
+}
+
+/** A search hit: the best passage of one document. Matched words are wrapped in «». */
+export interface ResultadoBusca {
+  documentoId: string;
+  casoId: string;
+  nome: string;
+  trecho: string;
+}
+
+/** A piece to generate as a Word file in the firm's template. */
+export interface NovaPeca {
+  /** The case it belongs to; its data fills the template's fields (client, case number, court). */
+  casoId: string;
+  /** Becomes the file name, e.g. "Petição inicial - Silva x Banco Alfa". */
+  titulo: string;
+  /**
+   * The piece's HTML. For a Documentos file, join the `html` of every block its `getDocument()`
+   * returns, in order. Headings, paragraphs, bold, italic, underline, lists, quotes, images and
+   * alignment carry over; fonts, sizes and colors come from the firm's template.
+   */
+  html: string;
+}
+
+/** A generated piece, proposed for the case's Cofre. */
+export interface PecaGerada {
+  casoId: string;
+  /** File name in the Cofre, ending in ".docx". */
+  nome: string;
+  /** Size in bytes. */
+  tamanho: number;
+}
+
 /** The firm's cases. */
 export interface CasosSession {
   /** Cases matching `filtro`, most recently changed first, without their `resumo`. */
@@ -121,4 +199,31 @@ export interface CasosSession {
    * CNJ number belongs to another case.
    */
   update(id: string, alteracoes: AlteracoesCaso): Promise<void>;
+
+  /** The documents of a case, newest first. */
+  listDocumentos(casoId: string): Promise<DocumentoInfo[]>;
+
+  /**
+   * Reads a document's text, `limite` characters from `inicio` (defaults 0 and 40,000; at most
+   * 100,000). Call again from `inicio + texto.length` until `fim` to read a long document. Returns
+   * null when no document has this id.
+   */
+  lerDocumento(
+    documentoId: string,
+    janela?: { inicio?: number; limite?: number },
+  ): Promise<TrechoDocumento | null>;
+
+  /**
+   * Full-text search over the documents, ignoring accents and case; every word must appear. Returns
+   * up to 20 documents, best match first, optionally limited to one case.
+   */
+  buscarDocumentos(consulta: string, filtro?: { casoId?: string }): Promise<ResultadoBusca[]>;
+
+  /**
+   * Generates a Word (.docx) file of a piece in the firm's template, filling its fields from the
+   * case, and proposes saving it to the case's documents. Use it when the lawyer asks for the piece
+   * "em Word", "no modelo do escritório" or to file it. The file shows in `listDocumentos()` at once
+   * and joins the case once a lawyer approves.
+   */
+  gerarPeca(peca: NovaPeca): Promise<PecaGerada>;
 }

@@ -409,6 +409,21 @@ export interface AuthenticatedApi extends RpcTarget {
   getUiFeatureFlags(): Promise<UiFeatureFlags>;
 
   /**
+   * (Lume) The deployment's VAPID public key (base64url) for `PushManager.subscribe()`, or null
+   * when push notifications are not configured.
+   */
+  getPushPublicKey(): Promise<string | null>;
+
+  /** (Lume) Stores this device's push subscription, as `PushSubscription.toJSON()` gives it. */
+  registerPushSubscription(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void>;
+
+  /** (Lume) Forgets a device's push subscription. */
+  removePushSubscription(endpoint: string): Promise<void>;
+
+  /** (Lume) Sends a test notification to every device of this user; returns how many took it. */
+  sendTestPush(): Promise<number>;
+
+  /**
    * Get the user's preferred model, chosen during onboarding. Returns null if the user has not
    * set a preference (or explicitly chose "No agent").
    */

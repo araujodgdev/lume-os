@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, relative, resolve } from "node:path";
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
@@ -74,7 +75,11 @@ const resourcePaths = [
   "resources.blueprintsKvNamespaceId",
   "resources.avatarsKvNamespaceId",
   "resources.blueprintContentBucket",
+  "resources.cofreBucket",
 ];
+
+/** Default model for Cofre OCR; deployment.jsonc's casos.ocrModel overrides it. */
+export const DEFAULT_OCR_MODEL = "claude-opus-5";
 
 /** Whether the deployment uses upstream's built-in password accounts instead of Access. */
 export function isPasswordMode(config: DeploymentConfig): boolean {
@@ -257,6 +262,11 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
       "deployment's public origin, which is what the hosted deploy does.");
   }
 
+  const ocrModel = config.casos?.ocrModel;
+  if (ocrModel !== undefined && (typeof ocrModel !== "string" || !/^claude-[a-z0-9.-]+$/.test(ocrModel))) {
+    throw new Error('casos.ocrModel must be a Claude model id, e.g. "claude-opus-5".');
+  }
+
   const mode = config.access.mode;
   if (mode !== undefined && mode !== "cloudflare-access" && mode !== "password") {
     throw new Error('access.mode must be "cloudflare-access" or "password".');
@@ -359,6 +369,16 @@ export interface AiGatewayPlan {
  * read that as cross-account and demand a token for a gateway the binding can reach in-account.
  * Lowercase is also the form the dashboard and the API expect, so it is what the vars carry.
  */
+/**
+ * Whether the Cofre can OCR scanned documents: Claude has to be reachable through the deployment's
+ * own gateway over the Workers AI binding, which means an enabled, same-account gateway that lists
+ * the anthropic provider.
+ */
+export function cofreOcrEnabled(config: DeploymentConfig): boolean {
+  const gateway = aiGatewayPlan(config);
+  return Boolean(gateway && !gateway.crossAccount && config.aiGateway.providers?.includes("anthropic"));
+}
+
 export function aiGatewayPlan(config: DeploymentConfig): AiGatewayPlan | null {
   if (!config.aiGateway.enabled) return null;
   const deploymentAccountId = config.accountId.toLowerCase();
@@ -476,6 +496,9 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   ];
 
   setCommon(workshop, config, config.workers.workshop.name);
+  // (Lume) Every five minutes the Workshop collects the reminders gatekeepers queued (the Agenda's
+  // morning summary and hearing reminders) and pushes them to users' devices.
+  workshop.triggers = { crons: [NOTIFICATION_CRON] };
   workshop.vars = {
     ADMINS: config.access.admins,
     ...(isPasswordMode(config) ? {} : {
@@ -543,6 +566,20 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       entrypoint: "GatekeeperVendor",
       props: { sharingDomain: config.context.sharingDomain ?? origin },
     },
+    // The Agenda lives in the Casos Worker (it links entries to cases) but is a vendor of its own,
+    // so it gets its own page and agent binding. Same boundary as the case registry.
+    {
+      binding: "GATEKEEPER_AGENDA",
+      service: config.workers.casos.name,
+      entrypoint: "AgendaVendor",
+      props: { sharingDomain: config.context.sharingDomain ?? origin },
+    },
+    {
+      binding: "GATEKEEPER_PESQUISA",
+      service: config.workers.casos.name,
+      entrypoint: "PesquisaVendor",
+      props: { sharingDomain: config.context.sharingDomain ?? origin },
+    },
   ];
   workshop.kv_namespaces = [
     { binding: "BLUEPRINTS", ...(config.resources.blueprintsKvNamespaceId
@@ -576,8 +613,21 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   // here without adding a configuration surface for it.
   setCommon(scheduler, config, config.workers.scheduler.name);
 
-  // Casos stores everything in its own Durable Objects, so it needs nothing beyond the common block.
   setCommon(casos, config, config.workers.casos.name);
+  casos.r2_buckets = [
+    { binding: "COFRE", ...(config.resources.cofreBucket
+      ? { bucket_name: config.resources.cofreBucket } : {}) },
+  ];
+  // Text-layer conversion runs on this binding, and so does OCR: Claude is reached through the
+  // gateway over it, which only works in-account and only once the gateway holds an Anthropic key.
+  casos.ai = { binding: "WORKERS_AI" };
+  // Pesquisa searches court sites that need a real browser (reCAPTCHA, bot protection).
+  casos.browser = { binding: "BROWSER" };
+  casos.vars = {
+    CASOS_OCR: String(cofreOcrEnabled(config)),
+    CASOS_OCR_MODEL: config.casos?.ocrModel ?? DEFAULT_OCR_MODEL,
+    ...(config.aiGateway.enabled ? { CF_AI_GATEWAY: config.aiGateway.name } : {}),
+  };
 
   if (errorReporter) {
     setCommon(errorReporter, config, config.workers.errorReporter!.name);
@@ -658,6 +708,47 @@ async function readJsonc<T>(path: string): Promise<T> {
     throw new Error(`${where}: ${printParseErrorCode(errors[0].error)} at offset ${errors[0].offset}`);
   }
   return result;
+}
+
+/** How often the Workshop delivers gatekeeper notifications. */
+export const NOTIFICATION_CRON = "*/5 * * * *";
+
+/**
+ * (Lume) The Web Push key pair, generated once and kept as Workshop secrets: replacing it would
+ * silently cut off every device that enabled notifications, so an existing pair is never touched.
+ */
+function ensureVapidSecrets(config: DeploymentConfig): void {
+  const cwd = join(root, packageDirs.workshop);
+  const entry = resolveBinEntry(cwd, "wrangler");
+  const env = { ...process.env, CLOUDFLARE_ACCOUNT_ID: config.accountId };
+  const wrangler = (args: string[], input?: string) => {
+    const [command, argv] = entry
+      ? [process.execPath, [entry, ...args]] as const
+      : pnpmCommand(["exec", "wrangler", ...args], env);
+    return spawnSync(command, argv, { cwd, env, encoding: "utf8", ...(input === undefined ? {} : { input }) });
+  };
+  const name = config.workers.workshop.name;
+  const listed = wrangler(["secret", "list", "--name", name, "--format", "json"]);
+  if (listed.status !== 0) {
+    console.warn(`\nCould not list the Workshop's secrets, so push notifications were not set up:\n${listed.stderr}`);
+    return;
+  }
+  const names = new Set((JSON.parse(listed.stdout) as { name: string }[]).map((secret) => secret.name));
+  if (names.has("VAPID_PUBLIC_KEY") && names.has("VAPID_PRIVATE_KEY")) return;
+  const keys = generateVapidKeys();
+  // Through stdin, so the private key never touches the disk or the process list.
+  const stored = wrangler(["secret", "bulk", "--name", name],
+    JSON.stringify({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey }));
+  if (stored.status !== 0) throw new Error(`Storing the push notification keys failed:\n${stored.stderr}`);
+  console.log("Generated the Web Push (VAPID) keys and stored them as Workshop secrets.");
+}
+
+/** A P-256 key pair in the form web push wants: the raw public point and the private scalar, base64url. */
+export function generateVapidKeys(): { publicKey: string; privateKey: string } {
+  const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const jwk = privateKey.export({ format: "jwk" });
+  const point = publicKey.export({ format: "der", type: "spki" }).subarray(-65);
+  return { publicKey: Buffer.from(point).toString("base64url"), privateKey: jwk.d! };
 }
 
 // Every validateConfig message names a config path, so say which file those paths live in.
@@ -772,6 +863,7 @@ async function main(): Promise<void> {
     deployWorker(packageDirs.scheduler, deployArgs);
     deployWorker(packageDirs.casos, deployArgs);
     deployWorker(packageDirs.workshop, deployArgs);
+    if (!check) ensureVapidSecrets(config);
     // Last: it binds every one of the above.
     deployWorker(packageDirs.router, deployArgs);
   } finally {
