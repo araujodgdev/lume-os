@@ -101,6 +101,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.128.0
         version: 0.128.0(zod@4.4.3)
+      '@cloudflare/puppeteer':
+        specifier: ^1.3.0
+        version: 1.3.0(supports-color@10.2.2)
       '@gadgets/backend-utils':
         specifier: workspace:*
         version: link:../backend-utils

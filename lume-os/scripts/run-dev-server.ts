@@ -513,6 +513,7 @@ for (const gk of gatekeepers) {
   // in the Casos Worker but is a separate vendor with its own page and agent binding.
   const EXTRA_VENDORS: ServiceBinding[] = [
     { binding: "GATEKEEPER_AGENDA", service: "gatekeeper-casos", entrypoint: "AgendaVendor" },
+    { binding: "GATEKEEPER_PESQUISA", service: "gatekeeper-casos", entrypoint: "PesquisaVendor" },
   ];
   for (const extra of EXTRA_VENDORS) {
     if (gatekeepers.some((gk) => gk.name === extra.service)) config.services.push(extra);

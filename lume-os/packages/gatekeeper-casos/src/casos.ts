@@ -38,6 +38,9 @@ import {
 } from "./caso.js";
 import { normalizeCnj } from "./cnj.js";
 import { agendaFor, type AgendaStore } from "./agenda/store.js";
+import { verificarTexto } from "./pesquisa/busca.js";
+import { indiceFor, type IndiceJurisprudencia } from "./pesquisa/indice.js";
+import type { JulgadoSalvo } from "./pesquisa/types.js";
 import type { Compromisso } from "./agenda/types.js";
 import { montarCampos } from "./pecas/campos.js";
 import { gerarDocx } from "./pecas/modelo.js";
@@ -500,6 +503,7 @@ export class CasosGatekeeper
     const [modelo, configuracoes] = await Promise.all([vault.modelo(), vault.configuracoes()]);
     const bytes = gerarDocx(modelo, peca.html, montarCampos(caso, configuracoes.cidade, new Date()));
     const nome = `${nomeDeArquivo(titulo)}.docx`;
+    const citacoes = await conferirCitacoes(this.ctx.exports, peca.html);
     const action = this.#insert("peca", caso.id, { nome, tamanho: bytes.byteLength });
     await this.env.COFRE.put(this.#chavePendente(action), bytes);
     await queue.submitAction(action, {
@@ -509,9 +513,11 @@ export class CasosGatekeeper
         `para o caso "${caso.titulo}" e propõe salvá-la no Cofre do caso.\n\n` +
         (modelo
           ? "Gerada no modelo do escritório, com os campos preenchidos a partir do caso."
-          : "O escritório ainda não enviou um modelo, então foi usado o padrão forense (Times New Roman 12, espaçamento 1,5)."),
+          : "O escritório ainda não enviou um modelo, então foi usado o padrão forense (Times New Roman 12, espaçamento 1,5).") +
+        `\n\n${citacoes.texto}`,
       implementsRevert: true,
-      autoApprovable: true,
+      // A piece citing case law that does not check out always waits for a lawyer.
+      autoApprovable: !citacoes.problemas,
       actionKind: PECA_KIND,
     });
     return { casoId: caso.id, nome, tamanho: bytes.byteLength };
@@ -575,18 +581,23 @@ export class CasosManagementApi extends RpcTarget {
   readonly #registry: DurableObjectStub<CaseRegistry>;
   readonly #vault: DurableObjectStub<DocumentVault>;
   readonly #agenda: DurableObjectStub<AgendaStore>;
+  readonly #indice: DurableObjectStub<IndiceJurisprudencia>;
+  readonly #dominio: string;
   readonly #admin: boolean;
 
   constructor(
     registry: DurableObjectStub<CaseRegistry>,
     vault: DurableObjectStub<DocumentVault>,
     agenda: DurableObjectStub<AgendaStore>,
+    jurisprudencia: { indice: DurableObjectStub<IndiceJurisprudencia>; dominio: string },
     admin: boolean,
   ) {
     super();
     this.#registry = registry;
     this.#vault = vault;
     this.#agenda = agenda;
+    this.#indice = jurisprudencia.indice;
+    this.#dominio = jurisprudencia.dominio;
     this.#admin = admin;
   }
 
@@ -653,6 +664,11 @@ export class CasosManagementApi extends RpcTarget {
     await this.#vault.excluirCaso(id);
     await this.#agenda.excluirDoCaso(id);
     await this.#registry.delete(id);
+  }
+
+  /** Case law saved to a case. */
+  jurisprudenciaDoCaso(casoId: string): Promise<JulgadoSalvo[]> {
+    return this.#indice.salvos(this.#dominio, casoId);
   }
 
   /** A case's pending calendar entries, soonest first. */
@@ -742,6 +758,7 @@ export class CasosAccount
         registryFor(this.ctx.exports, this.ctx.props.sharingDomain),
         vaultFor(this.ctx.exports, this.ctx.props.sharingDomain),
         agendaFor(this.ctx.exports, this.ctx.props.sharingDomain),
+        { indice: indiceFor(this.ctx.exports), dominio: this.ctx.props.sharingDomain },
         context.isAdmin === true,
       ),
     );
@@ -913,6 +930,30 @@ function quote(text: string): string {
 }
 
 const TIPO_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/** How long a piece's citation check may take before the approval goes out without it. */
+const LIMITE_VERIFICACAO_MS = 25_000;
+
+/**
+ * Checks the case law a piece cites, for its approval description. Never blocks generating the
+ * piece: past the time limit, or on error, the description says the check did not run.
+ */
+async function conferirCitacoes(exports: Cloudflare.Exports, html: string): Promise<{ texto: string; problemas: boolean }> {
+  try {
+    const relatorio = await Promise.race([
+      verificarTexto(exports, html),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), LIMITE_VERIFICACAO_MS)),
+    ]);
+    if (!relatorio) return { texto: "**Citações de jurisprudência:** a conferência demorou demais; use a página Pesquisa → Verificar citações.", problemas: false };
+    if (relatorio.citacoes.length === 0) return { texto: "**Citações de jurisprudência:** nenhuma.", problemas: false };
+    const rotulo = { confirmada: "confirmada", divergente: "DIVERGENTE", nao_encontrada: "NÃO ENCONTRADA", nao_verificavel: "não verificável" } as const;
+    const linhas = relatorio.citacoes.map((c) => `- ${c.trecho}: **${rotulo[c.status]}**. ${c.observacao}`);
+    const problemas = relatorio.citacoes.some((c) => c.status === "divergente" || c.status === "nao_encontrada");
+    return { texto: `**Citações de jurisprudência:** ${relatorio.resumo}\n\n${linhas.join("\n")}`, problemas };
+  } catch {
+    return { texto: "**Citações de jurisprudência:** não foi possível conferir agora.", problemas: false };
+  }
+}
 
 /** A safe file name from a piece title: no path separators or control characters, at most 120 chars. */
 export function nomeDeArquivo(titulo: string): string {

@@ -10,5 +10,7 @@ declare namespace Cloudflare {
     CASOS_OCR?: string;
     /** The Claude model that transcribes scanned documents. */
     CASOS_OCR_MODEL?: string;
+    /** Browser Rendering, for court sites that need a real browser (reCAPTCHA, bot protection). */
+    BROWSER?: Fetcher;
   }
 }

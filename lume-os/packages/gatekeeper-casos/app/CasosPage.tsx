@@ -5,6 +5,7 @@ import Documentos, { type DocumentosClient } from "./Documentos";
 import ModeloEscritorio, { type ModeloClient } from "./ModeloEscritorio";
 import { formatarDataComDia } from "../src/agenda/calendario";
 import type { Compromisso } from "../src/agenda/types";
+import type { JulgadoSalvo } from "../src/pesquisa/types";
 import { PJE_LIMITE_PADRAO_MB, type Achado, type ConfiguracoesEscritorio } from "../src/cofre/tipos";
 import type {
   AlteracoesCaso,
@@ -26,6 +27,7 @@ export type CasosClient = DocumentosClient & ModeloClient & {
   delete(id: string): Promise<void>;
   buscarDocumentos(consulta: string): Promise<Achado[]>;
   compromissosDoCaso(casoId: string): Promise<Compromisso[]>;
+  jurisprudenciaDoCaso(casoId: string): Promise<JulgadoSalvo[]>;
 };
 
 type Props = {
@@ -542,6 +544,7 @@ function CasoEditor({
       </div>
 
       {saved && <PrazosDoCaso api={api} casoId={saved.id} />}
+      {saved && <JurisprudenciaDoCaso api={api} casoId={saved.id} />}
       {saved && <Documentos api={api} casoId={saved.id} limitePjeMb={limitePjeMb} />}
     </main>
   );
@@ -579,6 +582,40 @@ function PrazosDoCaso({ api, casoId }: { api: CasosClient; casoId: string }) {
               </span>
               <span className="min-w-0 flex-1 truncate">{c.titulo}</span>
               <span className="text-kumo-subtle">{formatarDataComDia(c.data)}{c.hora ? ` às ${c.hora}` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Decisions saved to the case from Pesquisa, read-only. */
+function JurisprudenciaDoCaso({ api, casoId }: { api: CasosClient; casoId: string }) {
+  const [itens, setItens] = useState<JulgadoSalvo[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.jurisprudenciaDoCaso(casoId).then((lista) => !cancelled && setItens(lista)).catch(() => !cancelled && setItens([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [api, casoId]);
+  if (!itens) return null;
+  return (
+    <section aria-label="Jurisprudência salva" className="flex flex-col gap-2 border-t border-kumo-line pt-6">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Jurisprudência salva</p>
+      {itens.length === 0 ? (
+        <p className="text-sm text-kumo-subtle">Nenhuma decisão salva. Salve decisões pela página Pesquisa ou peça ao agente.</p>
+      ) : (
+        <ul className="flex flex-col border-t border-kumo-line">
+          {itens.map(({ julgado: j, nota }) => (
+            <li key={j.id} className="flex flex-col gap-1 border-b border-kumo-line px-2 py-2 text-sm">
+              <a href={j.url} target="_blank" rel="noopener noreferrer" className="text-kumo-link">
+                {j.tribunal} · {j.tipo === "tema" ? `Tema ${j.numero}` : `${j.classe} ${j.numero}`}
+                {j.relator ? ` · Rel. ${j.relator}` : ""}
+                {j.dataJulgamento ? ` · j. ${j.dataJulgamento.split("-").toReversed().join("/")}` : ""}
+              </a>
+              {nota && <span className="text-kumo-subtle">{nota}</span>}
             </li>
           ))}
         </ul>

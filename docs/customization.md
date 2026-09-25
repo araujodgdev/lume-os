@@ -245,3 +245,9 @@ The Agenda's reminders reach lawyers' phones and browsers by Web Push. The deplo
 - On the first deploy it generates a VAPID key pair and stores it as the Workshop secrets `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (through `wrangler secret bulk`, reading from stdin). It never replaces an existing pair: new keys would silently cut off every device that already enabled notifications.
 
 Each lawyer turns notifications on per device in **Perfil → Avisos**, and can opt in on the Agenda page to a daily summary written by the agent in a conversation, which runs on their default model and costs one short agent run per working day. On iPhone and iPad this works only once the Lume is added to the home screen (Share → Adicionar à Tela de Início), which the page explains. To try it locally, export both keys before `pnpm run run-local`; `run-dev-server.ts` passes them through.
+
+## Case-law research (Pesquisa)
+
+Pesquisa needs no configuration. On first use its index starts importing the STJ's open data (every monthly "espelhos de acórdãos" file of each judging body, and the repetitive-appeal themes), one file per alarm; the import takes a while and then checks for new months daily. **Pesquisa → Fontes** (admins) shows the import and runs a test search on every live source.
+
+The STF, STJ SCON and e-SAJ courts are searched live, and the e-SAJ courts (TJSP, TJAC, TJAL, TJAM, TJCE, TJMS) always through [Browser Rendering](https://developers.cloudflare.com/browser-rendering/), located in Brazil, because their search requires reCAPTCHA. Browser Rendering is billed by browser time; searches are cached for a day. Court sites change and some block automated access: a source that fails shows as "indisponível" and never as "no precedent", and the diagnostic is where to spot it.

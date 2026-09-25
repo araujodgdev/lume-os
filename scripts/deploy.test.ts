@@ -240,6 +240,12 @@ test("generates Access-mode Workshop and Context configs", async () => {
       entrypoint: "AgendaVendor",
       props: { sharingDomain: "https://os.example.com" },
     },
+    {
+      binding: "GATEKEEPER_PESQUISA",
+      service: "acme-lume-os-casos",
+      entrypoint: "PesquisaVendor",
+      props: { sharingDomain: "https://os.example.com" },
+    },
   ]);
   assert.deepEqual(generated.workshop.kv_namespaces, [
     { binding: "BLUEPRINTS", id: "blueprints-kv-id" },
@@ -372,6 +378,7 @@ test("deploys the Casos Gatekeeper scoped like Context, with its migrations inta
   assert.deepEqual(
     generated.workshop.services!.find((service) => service.binding === "GATEKEEPER_CASOS")?.props,
     { sharingDomain: "acme" });
+  assert.deepEqual(generated.casos.browser, { binding: "BROWSER" });
   // The Agenda reads the same registry, so it must share the boundary.
   assert.deepEqual(
     generated.workshop.services!.find((service) => service.binding === "GATEKEEPER_AGENDA")?.props,

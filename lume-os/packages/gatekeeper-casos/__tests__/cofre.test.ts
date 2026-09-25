@@ -16,6 +16,7 @@ const testEnv = env as unknown as {
   CASOS_TEST_PARENT: DurableObjectNamespace<CasosTestParent>;
   COFRE_TEST_HOOKS: DurableObjectNamespace<CofreTestHooks>;
   AGENDA_STORE: DurableObjectNamespace<import("../src/agenda/store.js").AgendaStore>;
+  INDICE_JURISPRUDENCIA: DurableObjectNamespace<import("../src/pesquisa/indice.js").IndiceJurisprudencia>;
 };
 
 /** The built-in template with its body replaced. */
@@ -313,8 +314,8 @@ describe("pieces in the firm's template", () => {
     const domain = "firm-peca-modelo";
     const parent = await prepararCaso(domain);
     const vault = testEnv.DOCUMENT_VAULT.getByName(domain);
-    const admin = new CasosManagementApi(testEnv.CASE_REGISTRY.getByName(domain), vault, testEnv.AGENDA_STORE.getByName(domain), true);
-    const lawyer = new CasosManagementApi(testEnv.CASE_REGISTRY.getByName(domain), vault, testEnv.AGENDA_STORE.getByName(domain), false);
+    const admin = new CasosManagementApi(testEnv.CASE_REGISTRY.getByName(domain), vault, testEnv.AGENDA_STORE.getByName(domain), { indice: testEnv.INDICE_JURISPRUDENCIA.getByName("brasil"), dominio: domain }, true);
+    const lawyer = new CasosManagementApi(testEnv.CASE_REGISTRY.getByName(domain), vault, testEnv.AGENDA_STORE.getByName(domain), { indice: testEnv.INDICE_JURISPRUDENCIA.getByName("brasil"), dominio: domain }, false);
 
     expect(await lawyer.configuracoes()).toEqual({ pjeLimiteMb: 5, cidade: "", modelo: null });
     expect(() => lawyer.salvarConfiguracoes({ cidade: "X" })).toThrow(/administradores/);

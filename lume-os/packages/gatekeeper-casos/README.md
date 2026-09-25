@@ -64,6 +64,24 @@ The same Worker serves a second vendor, `AgendaVendor`: the firm's calendar of p
 - **Daily summary conversation.** A lawyer can opt in on the Agenda page (`preferencias`, per login). Their 07:00 summary then carries a `conversation`: the Workshop starts an agent chat, "Prazos de dd/mm/aaaa", in their "Resumos do agente" workspace, with a prompt to review their entries (`AGENDA.listar({ responsavel, ate })`) and linked cases without changing anything, and the push opens it. Each summary is one agent run, so it is off by default, and days with nothing pending start none.
 - **Who is viewing.** The Workshop passes the viewer's login in `AppUiContext.username` (a Lume kernel change), which the page uses for "Só os meus". Responsible lawyers are logins, as in Casos.
 
+## Pesquisa
+
+A third vendor in the same Worker, `PesquisaVendor`: case-law research the agent can cite safely. It has a page at `/gatekeepers/pesquisa` and an agent singleton bound as `PESQUISA`, typed by `PesquisaSession` in `src/pesquisa/types.d.ts`.
+
+- **Sources.**
+  - The STJ's open data (`dadosabertos.web.stj.jus.br`, CKAN) goes into Pesquisa's own index, `IndiceJurisprudencia`: SQLite FTS5 with accent folding. The import runs on alarms, one file per run, and re-checks daily for new months. The themes file is re-read weekly.
+  - Live sources run in `BuscaAoVivo`, a Durable Object placed in South America (`locationHint: "sam"`), because several courts refuse requests from abroad. They are rate-limited per source and cached for a day. The TST uses its JSON API. The STF and the STJ SCON use their portals' own endpoints, retried from inside the site's page in a browser when bot protection blocks plain requests. The e-SAJ state courts always go through Browser Rendering (`location: "BR"`), since the form needs a reCAPTCHA token.
+  - A source that fails reports `falhou` with the reason, never an empty result.
+- **Record.** Every decision any source returns is stored with its headnote, official URL, source and capture time. `citar(id)` formats only stored decisions, so the agent cannot cite what it did not find.
+- **Checking.**
+  - `src/pesquisa/citacoes.ts` finds judgments (superior-court classes, composite ones like "AgInt no AREsp", CNJ numbers), súmulas and themes in text or HTML. It tells the court from nearby acronyms, the CNJ number or the class, and ignores laws and articles.
+  - `verificar()` checks each citation against the record and, failing that, the court's live source by number. A citation comes back confirmada, divergente (with what differs: reporting judge, date, origin), não encontrada or não verificável. Súmulas are not checked yet.
+  - `CASOS.gerarPeca` runs the check. A piece with a divergent or unknown citation is not auto-approvable, and its approval lists every citation.
+- **Page.**
+  - Search: pick courts and a period; the page shows which sources failed; each result can be copied as a citation, opened on the court's site, or saved to a case (`pesquisa.salvar`, auto-approvable for the agent).
+  - A citation checker, for pasted text or a Cofre document.
+  - Fontes, for admins only: the import's progress and a live test of each source.
+
 ## Layout
 
 | File | Role |
@@ -86,14 +104,19 @@ The same Worker serves a second vendor, `AgendaVendor`: the firm's calendar of p
 | `src/agenda/store.ts` | `AgendaStore`: entries, holidays and recounting. |
 | `src/agenda/agenda.ts` | The Agenda's vendor, account, `AgendaManagementApi` and `AgendaGatekeeper` facet. |
 | `src/agenda/types.d.ts` | The agent-facing Agenda API, served through the `types.txt` symlink. |
+| `src/pesquisa/fontes/` | One module per source: STJ open data, SCON, TST, STF, e-SAJ. Pure parsers plus the request logic. |
+| `src/pesquisa/indice.ts` | `IndiceJurisprudencia`: the STJ import, the record of seen decisions, cached searches, decisions saved to cases. |
+| `src/pesquisa/ao-vivo.ts` | `BuscaAoVivo`: live searches from South America, with Browser Rendering. |
+| `src/pesquisa/busca.ts`, `citacoes.ts`, `julgado.ts` | Multi-court search, citation extraction and checking, ids and the canonical citation. |
+| `src/pesquisa/pesquisa.ts` | Pesquisa's vendor, account, page API and `PesquisaGatekeeper` facet. |
 | `src/casos.ts` | Vendor, account, verifier, the page's `CasosManagementApi`, and `CasosGatekeeper`: the per-workspace facet that stores proposals, applies approved ones and simulates pending ones. |
 | `app/` | The page, a single-file React app bundled into `src/generated/app.txt` by `build-app.mjs`. |
 
 ## Deployment
 
-The starter's `scripts/deploy.ts` deploys it as `workers.casos` and binds it as `GATEKEEPER_CASOS` on the router and the Workshop, and as `GATEKEEPER_AGENDA` (entrypoint `AgendaVendor`, same props) on the Workshop. It also gives the Worker the `COFRE` bucket (`resources.cofreBucket`, provisioned when `null`), the `WORKERS_AI` binding, and the OCR vars (`CF_AI_GATEWAY`, `CASOS_OCR`, `CASOS_OCR_MODEL` from `casos.ocrModel`). The Workshop binding carries `props.sharingDomain`, the same boundary as Context data (`context.sharingDomain`, or the public origin). Without props, as under `pnpm dev-server`, every account shares the `default` registry.
+The starter's `scripts/deploy.ts` deploys it as `workers.casos` and binds it as `GATEKEEPER_CASOS` on the router and the Workshop, and as `GATEKEEPER_AGENDA` and `GATEKEEPER_PESQUISA` (entrypoints `AgendaVendor` and `PesquisaVendor`, same props) on the Workshop. The Worker also gets the `BROWSER` binding (Browser Rendering). It also gives the Worker the `COFRE` bucket (`resources.cofreBucket`, provisioned when `null`), the `WORKERS_AI` binding, and the OCR vars (`CF_AI_GATEWAY`, `CASOS_OCR`, `CASOS_OCR_MODEL` from `casos.ocrModel`). The Workshop binding carries `props.sharingDomain`, the same boundary as Context data (`context.sharingDomain`, or the public origin). Without props, as under `pnpm dev-server`, every account shares the `default` registry.
 
-New accounts follow the admin's mode for auto-provisioned gatekeepers, which defaults to **optional**: each lawyer adds Casos from the Connectors page. Set Casos and Agenda to **enabled** under `/admin` → Conectores to give them to everyone.
+New accounts follow the admin's mode for auto-provisioned gatekeepers, which defaults to **optional**: each lawyer adds Casos from the Connectors page. Set Casos, Agenda and Pesquisa to **enabled** under `/admin` → Conectores to give them to everyone.
 
 ## Tests
 
@@ -101,4 +124,4 @@ New accounts follow the admin's mode for auto-provisioned gatekeepers, which def
 pnpm --filter @gadgets/gatekeeper-casos test:run
 ```
 
-`__tests__/` runs in workerd. `CofreTestHooks` installs a fake extractor, so the reading pipeline is tested without Workers AI or Claude; `__tests__/claude.test.ts` checks the exact request the OCR sends to the gateway. `CasosTestParent` in `__tests__/worker.ts` hosts the facet through `ctx.facets`, as the Overseer does, and records what it reports to the approval queue; `AgendaTestParent` does the same for the Agenda. `__tests__/prazos.test.ts` checks the counting rules against dates worked out by hand. `app/*.test.tsx` runs the page in jsdom.
+`__tests__/` runs in workerd. `CofreTestHooks` installs a fake extractor, so the reading pipeline is tested without Workers AI or Claude; `__tests__/claude.test.ts` checks the exact request the OCR sends to the gateway. `CasosTestParent` in `__tests__/worker.ts` hosts the facet through `ctx.facets`, as the Overseer does, and records what it reports to the approval queue; `AgendaTestParent` does the same for the Agenda. `__tests__/prazos.test.ts` checks the counting rules against dates worked out by hand. `__tests__/fixtures/` holds real STJ and TST responses; the SCON, e-SAJ and STF files (`*.sintetico.*`) are rebuilt from their known layouts, since those sites could not be reached when they were written, and `PesquisaTestHooks` points the index and the live sources at them. `app/*.test.tsx` runs the page in jsdom.

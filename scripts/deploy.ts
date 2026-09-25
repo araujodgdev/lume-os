@@ -574,6 +574,12 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       entrypoint: "AgendaVendor",
       props: { sharingDomain: config.context.sharingDomain ?? origin },
     },
+    {
+      binding: "GATEKEEPER_PESQUISA",
+      service: config.workers.casos.name,
+      entrypoint: "PesquisaVendor",
+      props: { sharingDomain: config.context.sharingDomain ?? origin },
+    },
   ];
   workshop.kv_namespaces = [
     { binding: "BLUEPRINTS", ...(config.resources.blueprintsKvNamespaceId
@@ -615,6 +621,8 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   // Text-layer conversion runs on this binding, and so does OCR: Claude is reached through the
   // gateway over it, which only works in-account and only once the gateway holds an Anthropic key.
   casos.ai = { binding: "WORKERS_AI" };
+  // Pesquisa searches court sites that need a real browser (reCAPTCHA, bot protection).
+  casos.browser = { binding: "BROWSER" };
   casos.vars = {
     CASOS_OCR: String(cofreOcrEnabled(config)),
     CASOS_OCR_MODEL: config.casos?.ocrModel ?? DEFAULT_OCR_MODEL,

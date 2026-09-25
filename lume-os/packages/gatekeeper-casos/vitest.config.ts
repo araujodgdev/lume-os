@@ -9,7 +9,7 @@ export default defineConfig({
       main: "./__tests__/worker.ts",
       miniflare: {
         compatibilityDate: "2026-02-02",
-        compatibilityFlags: ["allow_irrevocable_stub_storage", "nodejs_als"],
+        compatibilityFlags: ["allow_irrevocable_stub_storage", "nodejs_als", "nodejs_compat"],
         r2Buckets: ["COFRE"],
         durableObjects: {
           CASE_REGISTRY: { className: "CaseRegistry", useSQLite: true },
@@ -23,6 +23,11 @@ export default defineConfig({
           CASOS_TEST_PARENT: { className: "CasosTestParent", useSQLite: true },
           COFRE_TEST_HOOKS: { className: "CofreTestHooks", useSQLite: true },
           AGENDA_TEST_PARENT: { className: "AgendaTestParent", useSQLite: true },
+          INDICE_JURISPRUDENCIA: { className: "IndiceJurisprudencia", useSQLite: true },
+          BUSCA_AO_VIVO: { className: "BuscaAoVivo", useSQLite: true },
+          PESQUISA_GATEKEEPER: { className: "PesquisaGatekeeper", useSQLite: true },
+          PESQUISA_TEST_PARENT: { className: "PesquisaTestParent", useSQLite: true },
+          PESQUISA_TEST_HOOKS: { className: "PesquisaTestHooks", useSQLite: true },
         },
       },
     }),
