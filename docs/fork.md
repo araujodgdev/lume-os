@@ -19,6 +19,7 @@ The fork is **light**: features that law firms do not need are hidden and left u
 - **Removed:** the example `packages/custom-gatekeeper`. It only told agents "This is the Lume OS deployment". It is the template for Lume's own Gatekeepers; [Custom Gatekeepers](customization.md#custom-gatekeepers) explains how to restore it.
 - **Kept:** Context, the base for legal knowledge and skills, and Scheduler, the base for the deadlines calendar.
 - **Added:** Casos (`lume-os/packages/gatekeeper-casos`), the firm's case registry. It is a new package, not a change to upstream files, so it never conflicts with an upstream diff. Its [README](../lume-os/packages/gatekeeper-casos/README.md) explains the design.
+- **Added:** the Agenda, a second vendor in the Casos Worker (`AgendaVendor`, bound as `GATEKEEPER_AGENDA` with the same `sharingDomain`). It has its own page and `AGENDA` agent binding, and counts procedural deadlines. `scripts/run-dev-server.ts` adds the same binding for local development (`EXTRA_VENDORS`).
 
 The `lume-os-custom-gatekeeper` Worker stays in the Cloudflare account until you delete it (`pnpm exec wrangler delete --name lume-os-custom-gatekeeper`). Nothing binds it any more. The Workshop skips any account that references the vanished vendor and logs `connected.account.service.missing`.
 
@@ -41,6 +42,12 @@ Branding and pt-BR copy apply across the app; see the commits that rename Cloudf
 
 | Downloads from gatekeeper apps | `SandboxedGatekeeperApp.tsx` | `allow-downloads` added to the iframe sandbox, so the Casos page can save vault documents. The frame still has no network access and no same-origin rights |
 
+## Kernel (`workshop-shared`, `workshop-backend`)
+
+| What | Where | How |
+| --- | --- | --- |
+| Who opened a gatekeeper page | `workshop-shared/src/gatekeeper.ts` (`AppUiContext.username`), `workshop-backend/src/server.ts` (`getGatekeeperApp`) | The Workshop passes the user's login next to `isAdmin`, so the Agenda can filter "my" entries. Optional, so older gatekeepers ignore it |
+
 `/blueprint/$id` stays reachable on purpose. `createFromFormat` sends a format that needs setup to that page.
 
 ## Agent instructions (runtime, no deploy)
@@ -53,7 +60,8 @@ Você é o Lume, assistente jurídico de um escritório de advocacia brasileiro.
 - Entregue o trabalho em Documento (peças, pareceres, contratos, memorandos), Planilha (prazos, cálculos, honorários) ou Apresentação (reuniões com cliente). Não crie aplicativos, painéis ou ferramentas interativas; se pedirem, ofereça o formato mais próximo.
 - Siga a estrutura usual das peças processuais brasileiras e cite a legislação pelo nome e artigo (ex.: art. 319 do CPC).
 - Nunca invente jurisprudência, números de processo ou citações. Quando não puder verificar uma fonte, diga isso e indique o que o advogado deve conferir.
-- Conte prazos processuais em dias úteis (art. 219 do CPC) e sinalize feriados e suspensões que precisem ser confirmados.
+- Nunca conte prazos processuais de cabeça. Use `AGENDA.calcularPrazo()` informando como chegou a intimação (DJe, portal, ciência tácita ou outra), a data, os dias e o rito, e mostre o vencimento com a memória do cálculo, pedindo que o advogado confira. Cadastre prazos e audiências com `AGENDA.criar()` quando o advogado pedir ou ao ler uma intimação de um caso.
+- Se souber de um feriado local ou suspensão de expediente que afete um prazo, proponha o cadastro com `AGENDA.proporFeriado()`, citando a fonte.
 - Antes de trabalhar em um caso, leia-o em CASOS (use o catálogo ou `CASOS.list()` para encontrá-lo). Proponha alterações no cadastro com `CASOS.update()` quando o advogado pedir, nunca por conta própria.
 - Quando pedirem a peça em Word, no modelo do escritório ou pronta para protocolar, gere-a com `CASOS.gerarPeca({ casoId, titulo, html })`, usando o HTML do Documento (os `blocks[].html` de `getDocument()`, em ordem). Ela entra no Cofre do caso após a aprovação.
 - Trate todas as informações do caso como sigilosas.

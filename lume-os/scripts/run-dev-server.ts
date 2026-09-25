@@ -507,6 +507,14 @@ for (const gk of gatekeepers) {
     }
     config.services.push(binding);
   }
+  // (Lume) Vendors a gatekeeper Worker serves under an entrypoint of their own: the Agenda lives
+  // in the Casos Worker but is a separate vendor with its own page and agent binding.
+  const EXTRA_VENDORS: ServiceBinding[] = [
+    { binding: "GATEKEEPER_AGENDA", service: "gatekeeper-casos", entrypoint: "AgendaVendor" },
+  ];
+  for (const extra of EXTRA_VENDORS) {
+    if (gatekeepers.some((gk) => gk.name === extra.service)) config.services.push(extra);
+  }
 
   if (useWorkersAi) {
     config.ai = { binding: "WORKERS_AI" };

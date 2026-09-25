@@ -49,7 +49,7 @@ The deployment is six Workers. Keep their names unique: service bindings use the
 | `workshop` | The Lume OS backend, holding all user data in Durable Objects. |
 | `context` | The Context Gatekeeper. |
 | `scheduler` | The Scheduler Gatekeeper, which gives agents scheduled and recurring work. |
-| `casos` | The Casos Gatekeeper: the firm's case registry, its page, and the agent's `CASOS` binding. See its [README](../lume-os/packages/gatekeeper-casos/README.md). |
+| `casos` | The Casos Gatekeeper: the firm's case registry, its page, and the agent's `CASOS` binding. The same Worker serves the Agenda (its page and the agent's `AGENDA` binding). See its [README](../lume-os/packages/gatekeeper-casos/README.md). |
 | `errorReporter` | The private explicit-issue destination. |
 
 Context and Scheduler are *ambient*: upstream's release marks both `PREINSTALL`, so the hosted flow installs them on every instance and this starter deploys them for the same reason. Neither takes configuration beyond its name — the Scheduler takes none at all.

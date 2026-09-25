@@ -1,7 +1,10 @@
 import { ArrowLeft, MagnifyingGlass, Plus, Sparkle, Trash } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Field, Select, TextArea, TextInput, lines, messageOf } from "./controles";
 import Documentos, { type DocumentosClient } from "./Documentos";
 import ModeloEscritorio, { type ModeloClient } from "./ModeloEscritorio";
+import { formatarDataComDia } from "../src/agenda/calendario";
+import type { Compromisso } from "../src/agenda/types";
 import { PJE_LIMITE_PADRAO_MB, type Achado, type ConfiguracoesEscritorio } from "../src/cofre/tipos";
 import type {
   AlteracoesCaso,
@@ -22,6 +25,7 @@ export type CasosClient = DocumentosClient & ModeloClient & {
   update(id: string, alteracoes: AlteracoesCaso): Promise<Caso>;
   delete(id: string): Promise<void>;
   buscarDocumentos(consulta: string): Promise<Achado[]>;
+  compromissosDoCaso(casoId: string): Promise<Compromisso[]>;
 };
 
 type Props = {
@@ -537,76 +541,52 @@ function CasoEditor({
         </div>
       </div>
 
+      {saved && <PrazosDoCaso api={api} casoId={saved.id} />}
       {saved && <Documentos api={api} casoId={saved.id} limitePjeMb={limitePjeMb} />}
     </main>
   );
 }
 
-function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
+const TIPO_COMPROMISSO: Record<Compromisso["tipo"], string> = {
+  prazo: "Prazo",
+  audiencia: "Audiência",
+  tarefa: "Tarefa",
+  reuniao: "Reunião",
+};
+
+/** The case's pending deadlines and hearings, read-only: they are managed in the Agenda. */
+function PrazosDoCaso({ api, casoId }: { api: CasosClient; casoId: string }) {
+  const [itens, setItens] = useState<Compromisso[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.compromissosDoCaso(casoId).then((lista) => !cancelled && setItens(lista)).catch(() => !cancelled && setItens([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [api, casoId]);
+  if (!itens) return null;
   return (
-    <label className={`flex flex-col gap-1.5 ${wide ? "sm:col-span-2" : ""}`}>
-      <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-kumo-subtle">{label}</span>
-      {children}
-    </label>
+    <section aria-label="Prazos e audiências" className="flex flex-col gap-2 border-t border-kumo-line pt-6">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Prazos e audiências</p>
+      {itens.length === 0 ? (
+        <p className="text-sm text-kumo-subtle">Nada pendente. Cadastre prazos e audiências na Agenda.</p>
+      ) : (
+        <ul className="flex flex-col border-t border-kumo-line">
+          {itens.map((c) => (
+            <li key={c.id} className="flex gap-3 border-b border-kumo-line px-2 py-2 text-sm">
+              <span className="w-28 shrink-0 font-mono text-[11px] uppercase tracking-[0.06em] text-kumo-subtle">
+                {TIPO_COMPROMISSO[c.tipo]}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{c.titulo}</span>
+              <span className="text-kumo-subtle">{formatarDataComDia(c.data)}{c.hora ? ` às ${c.hora}` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
-}
-
-const CONTROL = "w-full border border-kumo-line bg-kumo-control px-3 py-2 text-sm outline-none focus:border-kumo-ring";
-
-function TextInput(props: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <input
-      className={CONTROL}
-      value={props.value}
-      placeholder={props.placeholder}
-      onChange={(event) => props.onChange(event.target.value)}
-    />
-  );
-}
-
-function TextArea(props: { value: string; onChange: (value: string) => void; rows: number }) {
-  return (
-    <textarea
-      className={`${CONTROL} resize-y`}
-      rows={props.rows}
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
-    />
-  );
-}
-
-function Select<T extends string>(props: {
-  value: T;
-  onChange: (value: T) => void;
-  options: [T, string][];
-}) {
-  return (
-    <select
-      className={CONTROL}
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value as T)}
-    >
-      {props.options.map(([value, label]) => (
-        <option key={value} value={value}>
-          {label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function lines(text: string): string[] {
-  return text.split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
 function formatDate(epochMs: number): string {
   return new Date(epochMs).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-}
-
-function messageOf(caught: unknown): string {
-  return caught instanceof Error ? caught.message : String(caught);
 }

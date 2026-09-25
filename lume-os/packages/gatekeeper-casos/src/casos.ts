@@ -37,6 +37,8 @@ import {
   type DadosCaso,
 } from "./caso.js";
 import { normalizeCnj } from "./cnj.js";
+import { agendaFor, type AgendaStore } from "./agenda/store.js";
+import type { Compromisso } from "./agenda/types.js";
 import { montarCampos } from "./pecas/campos.js";
 import { gerarDocx } from "./pecas/modelo.js";
 import type { CaseRegistry } from "./registry.js";
@@ -111,7 +113,7 @@ type PropostaRow = {
   anterior: string | null;
 };
 
-function registryFor(
+export function registryFor(
   exports: Cloudflare.Exports,
   sharingDomain: string,
 ): DurableObjectStub<CaseRegistry> {
@@ -572,16 +574,19 @@ export class CasosGatekeeper
 export class CasosManagementApi extends RpcTarget {
   readonly #registry: DurableObjectStub<CaseRegistry>;
   readonly #vault: DurableObjectStub<DocumentVault>;
+  readonly #agenda: DurableObjectStub<AgendaStore>;
   readonly #admin: boolean;
 
   constructor(
     registry: DurableObjectStub<CaseRegistry>,
     vault: DurableObjectStub<DocumentVault>,
+    agenda: DurableObjectStub<AgendaStore>,
     admin: boolean,
   ) {
     super();
     this.#registry = registry;
     this.#vault = vault;
+    this.#agenda = agenda;
     this.#admin = admin;
   }
 
@@ -643,10 +648,16 @@ export class CasosManagementApi extends RpcTarget {
     return (await this.#registry.update(id, validateAlteracoes(alteracoes))).caso;
   }
 
-  /** Deletes a case and every document in it. */
+  /** Deletes a case, every document in it and its calendar entries. */
   async delete(id: string): Promise<void> {
     await this.#vault.excluirCaso(id);
+    await this.#agenda.excluirDoCaso(id);
     await this.#registry.delete(id);
+  }
+
+  /** A case's pending calendar entries, soonest first. */
+  compromissosDoCaso(casoId: string): Promise<Compromisso[]> {
+    return this.#agenda.consultar({ casoId, status: "pendente" });
   }
 
   /** A case's documents, newest first. */
@@ -730,6 +741,7 @@ export class CasosAccount
       new CasosManagementApi(
         registryFor(this.ctx.exports, this.ctx.props.sharingDomain),
         vaultFor(this.ctx.exports, this.ctx.props.sharingDomain),
+        agendaFor(this.ctx.exports, this.ctx.props.sharingDomain),
         context.isAdmin === true,
       ),
     );

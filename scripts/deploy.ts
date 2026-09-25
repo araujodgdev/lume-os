@@ -562,6 +562,14 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       entrypoint: "GatekeeperVendor",
       props: { sharingDomain: config.context.sharingDomain ?? origin },
     },
+    // The Agenda lives in the Casos Worker (it links entries to cases) but is a vendor of its own,
+    // so it gets its own page and agent binding. Same boundary as the case registry.
+    {
+      binding: "GATEKEEPER_AGENDA",
+      service: config.workers.casos.name,
+      entrypoint: "AgendaVendor",
+      props: { sharingDomain: config.context.sharingDomain ?? origin },
+    },
   ];
   workshop.kv_namespaces = [
     { binding: "BLUEPRINTS", ...(config.resources.blueprintsKvNamespaceId

@@ -84,6 +84,11 @@ export type VendorDescription = {
  */
 export type AppUiContext = {
   isAdmin: boolean;
+  /**
+   * (Lume) The login of the user opening the page, so an app can show "my" items and address
+   * reminders. Absent from Workshops that predate it.
+   */
+  username?: string;
 }
 
 // The agent catalog is bounded discovery metadata a gatekeeper exposes via

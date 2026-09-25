@@ -20,6 +20,10 @@
       "tag": "v2",
       "new_sqlite_classes": ["DocumentVault"],
     },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["AgendaStore", "AgendaGatekeeper"],
+    },
   ],
   // The Cofre's files. The starter's deploy provisions the bucket (or binds resources.cofreBucket)
   // and adds the Workers AI binding, which local development runs without.

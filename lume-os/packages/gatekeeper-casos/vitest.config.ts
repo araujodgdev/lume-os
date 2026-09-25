@@ -15,11 +15,14 @@ export default defineConfig({
           CASE_REGISTRY: { className: "CaseRegistry", useSQLite: true },
           DOCUMENT_VAULT: { className: "DocumentVault", useSQLite: true },
           CASOS_GATEKEEPER: { className: "CasosGatekeeper", useSQLite: true },
+          AGENDA_STORE: { className: "AgendaStore", useSQLite: true },
+          AGENDA_GATEKEEPER: { className: "AgendaGatekeeper", useSQLite: true },
           // The gatekeeper reads `ctx.props`, and a `DurableObjectClass` carrying props is only
           // reachable through `ctx.facets` -- so the tests drive it from a parent Durable Object,
           // as the overseer does in production, rather than through the namespace above.
           CASOS_TEST_PARENT: { className: "CasosTestParent", useSQLite: true },
           COFRE_TEST_HOOKS: { className: "CofreTestHooks", useSQLite: true },
+          AGENDA_TEST_PARENT: { className: "AgendaTestParent", useSQLite: true },
         },
       },
     }),

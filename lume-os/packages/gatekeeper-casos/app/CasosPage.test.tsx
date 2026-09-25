@@ -44,6 +44,7 @@ function client(overrides: Partial<CasosClient> = {}): CasosClient {
     salvarModelo: vi.fn<CasosClient["salvarModelo"]>(),
     removerModelo: vi.fn<CasosClient["removerModelo"]>(),
     baixarModelo: vi.fn<CasosClient["baixarModelo"]>(async () => null),
+    compromissosDoCaso: vi.fn<CasosClient["compromissosDoCaso"]>(async () => []),
     ...overrides,
   };
 }

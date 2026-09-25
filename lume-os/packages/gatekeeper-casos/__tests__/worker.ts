@@ -21,6 +21,10 @@ export * from "../src/worker.js";
 export { CasosGatekeeper, CasosAccount, CasosVerifier } from "../src/casos.js";
 export { CaseRegistry } from "../src/registry.js";
 export { DocumentVault } from "../src/cofre/vault.js";
+export { AgendaStore } from "../src/agenda/store.js";
+export { AgendaGatekeeper, AgendaAccount } from "../src/agenda/agenda.js";
+import type { AgendaGatekeeper } from "../src/agenda/agenda.js";
+import type { AgendaSession } from "../src/agenda/types.js";
 import { setExtratorFactory } from "../src/cofre/vault.js";
 import type { Extrator } from "../src/cofre/extrator.js";
 
@@ -129,6 +133,67 @@ export class CasosTestParent extends DurableObject<Cloudflare.Env> {
 
   async apply(name: string, domain: string, action: number): Promise<void> {
     return this.#facet(name, domain).applyAction(action);
+  }
+
+  async reject(name: string, domain: string, action: number): Promise<void> {
+    await this.#facet(name, domain).rejectAction(action);
+  }
+
+  async revert(name: string, domain: string, action: number) {
+    return this.#facet(name, domain).revertAction(action);
+  }
+}
+
+/**
+ * Stands in for the Overseer for the Agenda facet. `sessao` runs one session method and returns
+ * its result or error message, since a rejection crossing the test's RPC boundary is reported as
+ * uncaught.
+ */
+export class AgendaTestParent extends DurableObject<Cloudflare.Env> {
+  #events: Recorded[] = [];
+
+  #facet(name: string, sharingDomain: string): DurableObjectStub<AgendaGatekeeper> {
+    return this.ctx.facets.get<AgendaGatekeeper>(name, () => ({
+      class: this.ctx.exports.AgendaGatekeeper({ props: { sharingDomain } }),
+    })) as unknown as DurableObjectStub<AgendaGatekeeper>;
+  }
+
+  events(): Recorded[] {
+    return this.#events;
+  }
+
+  async sessao<M extends keyof AgendaSession>(
+    name: string,
+    domain: string,
+    metodo: M,
+    ...args: Parameters<AgendaSession[M]>
+  ): Promise<{ ok: Awaited<ReturnType<AgendaSession[M]>> } | { erro: string }> {
+    const queue = new RpcStub(new TestApprovalQueue(this.#events));
+    const session = (await this.#facet(name, domain).startSession(queue as never)) as unknown as AgendaSession;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { ok: await (session[metodo] as any)(...args) };
+    } catch (error) {
+      return { erro: (error as Error).message };
+    }
+  }
+
+  async autoApprovable(name: string, domain: string) {
+    return this.#facet(name, domain).getAutoApprovableActions();
+  }
+
+  async catalog(name: string, domain: string) {
+    const queue = new RpcStub(new TestApprovalQueue(this.#events));
+    return this.#facet(name, domain).getAgentCatalog(queue as never);
+  }
+
+  async apply(name: string, domain: string, action: number): Promise<string | null> {
+    try {
+      await this.#facet(name, domain).applyAction(action);
+      return null;
+    } catch (error) {
+      return (error as Error).message;
+    }
   }
 
   async reject(name: string, domain: string, action: number): Promise<void> {
