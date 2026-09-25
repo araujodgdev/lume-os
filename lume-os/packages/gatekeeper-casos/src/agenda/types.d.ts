@@ -105,6 +105,11 @@ export interface Compromisso {
   comarca?: string;
   /** For deadlines counted by the Agenda: the rule and the calculation behind `data`. */
   prazo?: { regra: RegraPrazo; calculo: CalculoPrazo };
+  /**
+   * Set when case tracking (PROCESSOS) suggested this entry from a notice and no lawyer confirmed it
+   * yet. Treat it as tentative. Editing it confirms it.
+   */
+  sugestao?: { origem: string; intimacaoId?: string };
   /** Creation time, epoch milliseconds. */
   criadoEm: number;
   /** Last change, epoch milliseconds. */

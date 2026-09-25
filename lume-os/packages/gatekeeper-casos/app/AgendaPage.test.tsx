@@ -62,6 +62,8 @@ function client(overrides: Partial<AgendaClient> = {}): AgendaClient {
     ]),
     removerFeriado: vi.fn<AgendaClient["removerFeriado"]>(async () => []),
     preferencias: vi.fn<AgendaClient["preferencias"]>(async () => ({ resumoConversa: false })),
+    confirmarSugestao: vi.fn<AgendaClient["confirmarSugestao"]>(async () => contestacao),
+    descartarSugestao: vi.fn<AgendaClient["descartarSugestao"]>(async () => {}),
     salvarPreferencias: vi.fn<AgendaClient["salvarPreferencias"]>(async (p) => p),
     ...overrides,
   };
@@ -178,6 +180,18 @@ describe("AgendaPage", () => {
     expect(page.textContent).toContain("Vence em terça, 10/03/2026");
     await act(async () => button("Agendar").click());
     expect(api.criar).toHaveBeenCalledWith(expect.objectContaining({ titulo: "Contestação", regra: expect.any(Object) }));
+  });
+
+  it("separa os prazos sugeridos pelo acompanhamento e os confirma", async () => {
+    const sugerido = compromisso({ id: "s1", titulo: "Manifestação", data: "2026-03-12", sugestao: { origem: "djen", intimacaoId: "i1" } });
+    const api = client({ listar: vi.fn<AgendaClient["listar"]>(async () => [contestacao, sugerido]) });
+    const page = await render(api);
+    const secao = page.querySelector('section[aria-label="Sugeridos pelo acompanhamento"]')!;
+    expect(secao.textContent).toContain("Prazo: Manifestação");
+    expect(secao.textContent).toContain("publicação no DJEN");
+    expect(page.querySelector('section[aria-label="Próximos 7 dias úteis"]')!.textContent).not.toContain("Manifestação");
+    await act(async () => [...secao.querySelectorAll("button")].find((b) => b.textContent === "Confirmar")!.click());
+    expect(api.confirmarSugestao).toHaveBeenCalledWith("s1");
   });
 
   it("liga o resumo diário do agente", async () => {

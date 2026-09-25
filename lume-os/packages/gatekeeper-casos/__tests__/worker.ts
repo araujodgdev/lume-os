@@ -414,3 +414,161 @@ export class PesquisaTestParent extends DurableObject<Cloudflare.Env> {
     return this.#facet(name, domain).revertAction(action);
   }
 }
+
+// --- Processos ---
+
+export { ProcessosStore } from "../src/processos/store.js";
+export { ProcessosGatekeeper, ProcessosAccount } from "../src/processos/processos.js";
+import type { ProcessosGatekeeper } from "../src/processos/processos.js";
+import type { ProcessosSession } from "../src/processos/types.js";
+import { setFetchProcessos } from "../src/processos/store.js";
+import { ProcessosManagementApi } from "../src/processos/processos.js";
+
+/** How the fake courts behave: what each source answers. */
+export type FakeProcessos = {
+  /** The PJe password the fake MNI accepts. */
+  senha: string;
+  avisos?: { idAviso: string; processo: string; data: string; tipo?: string }[];
+  teor?: { texto: string; prazo?: number; documentoPdf?: boolean };
+  djen?: { id: string; processo: string; data: string; texto: string }[];
+  datajud?: { dataHora: string; codigo: number; nome: string }[];
+  /** Answer DataJud and DJEN with 403, as they do from abroad. */
+  bloqueado?: boolean;
+};
+
+let chamadasProcessos: string[] = [];
+
+function soap(corpo: string, status = 200): Response {
+  return new Response(
+    `<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>${corpo}</soap:Body></soap:Envelope>`,
+    { status, headers: { "Content-Type": "text/xml" } },
+  );
+}
+
+/** Responses shaped by the MNI 2.2.3 XSD (tipoAvisoComunicacaoPendente, tipoComunicacaoProcessual). */
+function fakeProcessos(spec: FakeProcessos): typeof fetch {
+  const ns = 'xmlns:ns2="http://www.cnj.jus.br/servico-intercomunicacao-2.2.3/" xmlns:ns4="http://www.cnj.jus.br/intercomunicacao-2.2.3"';
+  return async (input, init) => {
+    const url = String(input instanceof Request ? input.url : input);
+    const corpo = String(init?.body ?? "");
+    if (url.includes("/intercomunicacao")) {
+      const op = /<ser:(\w+)>/.exec(corpo)?.[1] ?? "wsdl";
+      chamadasProcessos.push(`mni:${op}`);
+      const senha = /<tip:senhaConsultante>([^<]*)</.exec(corpo)?.[1];
+      if (senha !== spec.senha) {
+        return soap(`<ns2:${op}Resposta ${ns}><sucesso>false</sucesso><mensagem>Usuário ou senha inválidos.</mensagem></ns2:${op}Resposta>`);
+      }
+      // Everything lives in the first instance; the second has nothing pending.
+      const primeiroGrau = url.startsWith("https://pje.tjmg.jus.br/");
+      if (op === "consultarAvisosPendentes") {
+        const avisos = (primeiroGrau ? spec.avisos ?? [] : []).map((a) =>
+          `<ns2:aviso idAviso="${a.idAviso}" tipoComunicacao="${a.tipo ?? "INT"}">` +
+          `<ns4:destinatario><ns4:pessoa nome="ANA SOUZA"/></ns4:destinatario>` +
+          `<ns4:processo numero="${a.processo.replace(/\D/g, "")}"><ns4:orgaoJulgador nomeOrgao="1ª Vara Cível de Belo Horizonte"/></ns4:processo>` +
+          `<ns4:dataDisponibilizacao>${a.data.replace(/-/g, "")}093000</ns4:dataDisponibilizacao></ns2:aviso>`).join("");
+        return soap(`<ns2:consultarAvisosPendentesResposta ${ns}><sucesso>true</sucesso><mensagem>ok</mensagem>${avisos}</ns2:consultarAvisosPendentesResposta>`);
+      }
+      if (op === "consultarTeorComunicacao") {
+        if (!primeiroGrau) {
+          return soap(`<ns2:${op}Resposta ${ns}><sucesso>false</sucesso><mensagem>Aviso não encontrado.</mensagem></ns2:${op}Resposta>`);
+        }
+        const t = spec.teor ?? { texto: "Intime-se." };
+        const doc = t.documentoPdf
+          ? `<ns4:documento descricao="Decisão.pdf" mimetype="application/pdf"><ns4:conteudo>${btoa("%PDF-1.4 decisão")}</ns4:conteudo></ns4:documento>`
+          : "";
+        return soap(
+          `<ns2:consultarTeorComunicacaoResposta ${ns}><sucesso>true</sucesso><mensagem>ok</mensagem>` +
+          `<ns2:comunicacao id="1" ${t.prazo ? `prazo="${t.prazo}" tipoPrazo="DIA"` : ""}><ns4:destinatario/><ns4:processo>x</ns4:processo>` +
+          `<ns4:teor>${t.texto}</ns4:teor>${doc}</ns2:comunicacao></ns2:consultarTeorComunicacaoResposta>`,
+        );
+      }
+      return new Response("?", { status: 404 });
+    }
+    if (url.startsWith("https://comunicaapi.pje.jus.br/")) {
+      chamadasProcessos.push(`djen:${new URL(url).searchParams.get("numeroOab")}`);
+      if (spec.bloqueado) return new Response("forbidden", { status: 403 });
+      return Response.json({
+        status: "success",
+        items: (spec.djen ?? []).map((p) => ({
+          id: p.id, numeroprocessocommascara: p.processo, siglaTribunal: "TJMG", data_disponibilizacao: p.data,
+          tipoComunicacao: "Intimação", nomeOrgao: "2ª Vara Cível", texto: p.texto, link: "https://comunica.pje.jus.br/x",
+        })),
+      });
+    }
+    if (url.startsWith("https://api-publica.datajud.cnj.jus.br/")) {
+      chamadasProcessos.push(`datajud:${url.split("/")[3]}`);
+      if (spec.bloqueado) return new Response("forbidden", { status: 403 });
+      return Response.json({ hits: { hits: [{ _source: { movimentos: spec.datajud ?? [] } }] } });
+    }
+    return new Response("not found", { status: 404 });
+  };
+}
+
+/** Points Processos' network at fake courts, from inside the Worker's module instance. */
+export class ProcessosTestHooks extends DurableObject<Cloudflare.Env> {
+  configurar(spec: FakeProcessos | null): void {
+    chamadasProcessos = [];
+    setFetchProcessos(spec ? fakeProcessos(spec) : null);
+  }
+
+  chamadas(): string[] {
+    return chamadasProcessos;
+  }
+
+  /**
+   * Runs one page method as `usuario` and returns its error message, or null. A rejection that
+   * crosses the test's RPC boundary is reported as uncaught even when the test awaits it.
+   */
+  async erroDe<M extends keyof ProcessosManagementApi>(
+    domain: string,
+    usuario: string,
+    metodo: M,
+    ...args: Parameters<ProcessosManagementApi[M]>
+  ): Promise<string | null> {
+    const api = new ProcessosManagementApi(
+      this.ctx.exports.ProcessosStore.getByName(domain),
+      this.ctx.exports.CaseRegistry.getByName(domain),
+      this.ctx.exports.DocumentVault.getByName(domain),
+      false,
+      usuario,
+    );
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (api[metodo] as any)(...args);
+      return null;
+    } catch (error) {
+      return (error as Error).message;
+    }
+  }
+}
+
+/** Hosts the Processos facet as the Overseer would. */
+export class ProcessosTestParent extends DurableObject<Cloudflare.Env> {
+  #events: Recorded[] = [];
+
+  #facet(name: string, sharingDomain: string): DurableObjectStub<ProcessosGatekeeper> {
+    return this.ctx.facets.get<ProcessosGatekeeper>(name, () => ({
+      class: this.ctx.exports.ProcessosGatekeeper({ props: { sharingDomain } }),
+    })) as unknown as DurableObjectStub<ProcessosGatekeeper>;
+  }
+
+  events(): Recorded[] {
+    return this.#events;
+  }
+
+  async sessao<M extends keyof ProcessosSession>(
+    name: string,
+    domain: string,
+    metodo: M,
+    ...args: Parameters<ProcessosSession[M]>
+  ): Promise<{ ok: Awaited<ReturnType<ProcessosSession[M]>> } | { erro: string }> {
+    const queue = new RpcStub(new TestApprovalQueue(this.#events));
+    const session = (await this.#facet(name, domain).startSession(queue as never)) as unknown as ProcessosSession;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { ok: await (session[metodo] as any)(...args) };
+    } catch (error) {
+      return { erro: (error as Error).message };
+    }
+  }
+}

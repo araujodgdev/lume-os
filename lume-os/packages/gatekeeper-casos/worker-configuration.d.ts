@@ -7,7 +7,7 @@ interface __BaseEnv_Env {
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./src/worker");
-		durableNamespaces: "CaseRegistry" | "CasosGatekeeper" | "DocumentVault" | "AgendaStore" | "AgendaGatekeeper" | "IndiceJurisprudencia" | "BuscaAoVivo" | "PesquisaGatekeeper";
+		durableNamespaces: "CaseRegistry" | "CasosGatekeeper" | "DocumentVault" | "AgendaStore" | "AgendaGatekeeper" | "IndiceJurisprudencia" | "BuscaAoVivo" | "PesquisaGatekeeper" | "ProcessosStore" | "ProcessosGatekeeper";
 	}
 	interface Env extends __BaseEnv_Env {}
 }

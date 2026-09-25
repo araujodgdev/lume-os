@@ -5,6 +5,8 @@ export { AgendaAccount, AgendaGatekeeper, AgendaVendor } from "./agenda/agenda.j
 export { IndiceJurisprudencia } from "./pesquisa/indice.js";
 export { BuscaAoVivo } from "./pesquisa/ao-vivo.js";
 export { PesquisaAccount, PesquisaGatekeeper, PesquisaVendor } from "./pesquisa/pesquisa.js";
+export { ProcessosStore } from "./processos/store.js";
+export { ProcessosAccount, ProcessosGatekeeper, ProcessosVendor } from "./processos/processos.js";
 export {
   GatekeeperVendor as default,
   GatekeeperVendor,

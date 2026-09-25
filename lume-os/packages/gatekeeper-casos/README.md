@@ -82,6 +82,33 @@ A third vendor in the same Worker, `PesquisaVendor`: case-law research the agent
   - A citation checker, for pasted text or a Cofre document.
   - Fontes, for admins only: the import's progress and a live test of each source.
 
+## Intimações
+
+A fourth vendor in the same Worker, `ProcessosVendor`: case tracking. It has a page at `/gatekeepers/processos` and a read-only agent singleton bound as `PROCESSOS`, typed by `ProcessosSession` in `src/processos/types.d.ts`.
+
+- **Sources** (`src/processos/fontes/`).
+  - `mni.ts`: the PJe's MNI 2.2.3 SOAP service, authenticated with the lawyer's CPF and PJe password in the message body. `consultarAvisosPendentes` lists pending notices without registering notification. `consultarTeorComunicacao` opens a notice and **registers notification**: only `abrirTeor()` calls it, and only `ProcessosStore.abrir()` calls that, for the lawyer who received the notice, after the page's confirmation. A test checks that syncing never calls it.
+  - `djen.ts`: the CNJ's Comunica API, publications by OAB number.
+  - `datajud.ts`: the CNJ's public DataJud API, docket entries by CNJ number.
+  - `tribunais.ts`: the default MNI address per court and instance. Admins override them on the page.
+- **Store.** `ProcessosStore`, one per sharing domain, created in South America (`locationHint: "sam"`), since these services refuse requests from abroad. It holds OAB numbers, credentials, the audit log, notices, docket entries and the notification queue.
+  - A PJe notice's id records the instance it came from (`pje:TJMG:1:<idAviso>`), and it is opened there and nowhere else.
+  - Passwords are encrypted with AES-256-GCM (`src/processos/cifra.ts`). The key comes from the secret `LUME_CHAVE_CREDENCIAIS`, and each record binds its owner and court as associated data. No method returns a password.
+- **Sync.** The store's alarm runs every two hours from 07:00 to 21:00 in Brasília and every six hours otherwise. The notification cron also re-arms it. A new notice is linked to the case with its CNJ number, and it gets a suggested entry in the Agenda through `AgendaStore.criarSugestao`:
+  - a closed PJe notice with a known deadline gets a `portal_tacita` deadline, with the length from the text (`prazo-texto.ts`) and the procedure from the case's area;
+  - a DJEN publication gets a `dje` deadline, computed the same way;
+  - a notice without a known length gets a task "Analisar …" for the next working day;
+  - opening a notice recounts its suggestion as `portal` from today.
+
+  The case's lawyers and the notice's recipient are notified. The notification carries a `conversation` unless the lawyer turned off "Resumo do agente". DataJud is read once every 20 hours per case, and the first read only seeds.
+- **Page.** It has four tabs:
+  - Intimações: open (with confirmation), link to a case, dismiss;
+  - Movimentações;
+  - Minhas credenciais: OAB numbers, PJe passwords with Testar, the agent-summary preference and the audit log;
+  - Tribunais: MNI addresses, sync errors and, for admins, the live diagnostic.
+
+  Opened notices' text and documents go to the case's Cofre.
+
 ## Layout
 
 | File | Role |
@@ -109,14 +136,18 @@ A third vendor in the same Worker, `PesquisaVendor`: case-law research the agent
 | `src/pesquisa/ao-vivo.ts` | `BuscaAoVivo`: live searches from South America, with Browser Rendering. |
 | `src/pesquisa/busca.ts`, `citacoes.ts`, `julgado.ts` | Multi-court search, citation extraction and checking, ids and the canonical citation. |
 | `src/pesquisa/pesquisa.ts` | Pesquisa's vendor, account, page API and `PesquisaGatekeeper` facet. |
+| `src/processos/fontes/` | MNI (SOAP), DJEN, DataJud and the court table. |
+| `src/processos/store.ts` | `ProcessosStore`: credentials, sync, notices, suggestions, notifications and the diagnostic. |
+| `src/processos/processos.ts` | The vendor, account, `ProcessosManagementApi` and the read-only `ProcessosGatekeeper` facet. |
+| `src/processos/cifra.ts`, `prazo-texto.ts` | Password encryption; deadline length from a notice's text. |
 | `src/casos.ts` | Vendor, account, verifier, the page's `CasosManagementApi`, and `CasosGatekeeper`: the per-workspace facet that stores proposals, applies approved ones and simulates pending ones. |
 | `app/` | The page, a single-file React app bundled into `src/generated/app.txt` by `build-app.mjs`. |
 
 ## Deployment
 
-The starter's `scripts/deploy.ts` deploys it as `workers.casos` and binds it as `GATEKEEPER_CASOS` on the router and the Workshop, and as `GATEKEEPER_AGENDA` and `GATEKEEPER_PESQUISA` (entrypoints `AgendaVendor` and `PesquisaVendor`, same props) on the Workshop. The Worker also gets the `BROWSER` binding (Browser Rendering). It also gives the Worker the `COFRE` bucket (`resources.cofreBucket`, provisioned when `null`), the `WORKERS_AI` binding, and the OCR vars (`CF_AI_GATEWAY`, `CASOS_OCR`, `CASOS_OCR_MODEL` from `casos.ocrModel`). The Workshop binding carries `props.sharingDomain`, the same boundary as Context data (`context.sharingDomain`, or the public origin). Without props, as under `pnpm dev-server`, every account shares the `default` registry.
+The starter's `scripts/deploy.ts` deploys it as `workers.casos` and binds it as `GATEKEEPER_CASOS` on the router and the Workshop, and as `GATEKEEPER_AGENDA`, `GATEKEEPER_PESQUISA` and `GATEKEEPER_PROCESSOS` (entrypoints `AgendaVendor`, `PesquisaVendor` and `ProcessosVendor`, same props) on the Workshop. On its first run it stores the secret `LUME_CHAVE_CREDENCIAIS` (32 random bytes) on the Worker and never replaces it. The Worker also gets the `BROWSER` binding (Browser Rendering). It also gives the Worker the `COFRE` bucket (`resources.cofreBucket`, provisioned when `null`), the `WORKERS_AI` binding, and the OCR vars (`CF_AI_GATEWAY`, `CASOS_OCR`, `CASOS_OCR_MODEL` from `casos.ocrModel`). The Workshop binding carries `props.sharingDomain`, the same boundary as Context data (`context.sharingDomain`, or the public origin). Without props, as under `pnpm dev-server`, every account shares the `default` registry.
 
-New accounts follow the admin's mode for auto-provisioned gatekeepers, which defaults to **optional**: each lawyer adds Casos from the Connectors page. Set Casos, Agenda and Pesquisa to **enabled** under `/admin` → Conectores to give them to everyone.
+New accounts follow the admin's mode for auto-provisioned gatekeepers, which defaults to **optional**: each lawyer adds Casos from the Connectors page. Set Casos, Agenda, Pesquisa and Intimações to **enabled** under `/admin` → Conectores to give them to everyone.
 
 ## Tests
 
@@ -124,4 +155,4 @@ New accounts follow the admin's mode for auto-provisioned gatekeepers, which def
 pnpm --filter @gadgets/gatekeeper-casos test:run
 ```
 
-`__tests__/` runs in workerd. `CofreTestHooks` installs a fake extractor, so the reading pipeline is tested without Workers AI or Claude; `__tests__/claude.test.ts` checks the exact request the OCR sends to the gateway. `CasosTestParent` in `__tests__/worker.ts` hosts the facet through `ctx.facets`, as the Overseer does, and records what it reports to the approval queue; `AgendaTestParent` does the same for the Agenda. `__tests__/prazos.test.ts` checks the counting rules against dates worked out by hand. `__tests__/fixtures/` holds real STJ and TST responses; the SCON, e-SAJ and STF files (`*.sintetico.*`) are rebuilt from their known layouts, since those sites could not be reached when they were written, and `PesquisaTestHooks` points the index and the live sources at them. `app/*.test.tsx` runs the page in jsdom.
+`__tests__/` runs in workerd. `CofreTestHooks` installs a fake extractor, so the reading pipeline is tested without Workers AI or Claude; `__tests__/claude.test.ts` checks the exact request the OCR sends to the gateway. `CasosTestParent` in `__tests__/worker.ts` hosts the facet through `ctx.facets`, as the Overseer does, and records what it reports to the approval queue; `AgendaTestParent` does the same for the Agenda. `__tests__/prazos.test.ts` checks the counting rules against dates worked out by hand. `__tests__/fixtures/` holds real STJ and TST responses; the SCON, e-SAJ and STF files (`*.sintetico.*`) are rebuilt from their known layouts, since those sites could not be reached when they were written, and `PesquisaTestHooks` points the index and the live sources at them. `ProcessosTestHooks` answers as the courts would, with MNI responses shaped by the XSD in `fixtures/mni-tjmg.wsdl` (the TJMG's published WSDL). `app/*.test.tsx` runs the page in jsdom.

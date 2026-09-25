@@ -146,6 +146,38 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
     return compromisso;
   }
 
+  /** Stores an entry suggested by case tracking, pending a lawyer's confirmation. */
+  criarSugestao(entrada: Entrada, caso: { tribunal?: string } | null, sugestao: { origem: string; intimacaoId?: string }): Compromisso {
+    return this.criar(crypto.randomUUID(), { ...this.resolver(entrada, "pendente", caso), sugestao });
+  }
+
+  /** A lawyer confirmed a suggested entry: from now on it is an ordinary one. */
+  confirmarSugestao(id: string, now = Date.now()): Compromisso {
+    const atual = this.obter(id);
+    if (!atual) throw new Error("Compromisso não encontrado.");
+    const { sugestao: _s, ...confirmado } = atual;
+    const c = { ...confirmado, atualizadoEm: now } as Compromisso;
+    this.#gravar(c);
+    return c;
+  }
+
+  /** Drops a suggestion nobody wants. Confirmed entries are not touched. */
+  descartarSugestao(id: string): void {
+    if (this.obter(id)?.sugestao) this.excluir(id);
+  }
+
+  /** Recounts a still-suggested deadline under a new rule (the notice was opened). */
+  recontarSugestao(id: string, regra: RegraPrazo, now = Date.now()): Compromisso | null {
+    const atual = this.obter(id);
+    if (!atual?.sugestao) return null;
+    const calculo = this.calcular(regra, { tribunal: atual.tribunal, comarca: atual.comarca });
+    // A task "Analisar …" (length unknown until the notice was opened) becomes the deadline itself.
+    const titulo = atual.tipo === "tarefa" ? atual.titulo.replace(/^Analisar (\S)/, (_, c: string) => c.toUpperCase()) : atual.titulo;
+    const c: Compromisso = { ...atual, tipo: "prazo", titulo, data: calculo.vencimento, prazo: { regra, calculo }, atualizadoEm: now };
+    this.#gravar(c);
+    return c;
+  }
+
   /** Replaces an entry's fields, returning the previous record for reverting. */
   substituir(id: string, dados: DadosCompromisso, now = Date.now()): { compromisso: Compromisso; anterior: Compromisso } {
     const anterior = this.obter(id);
@@ -274,7 +306,7 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
           const quando = c.data < hoje ? `Vencido ${formatarData(c.data).slice(0, 5)}` :
             c.data === hoje ? "Hoje" : formatarData(c.data).slice(0, 5);
           const caso = tituloCaso(c);
-          return `${quando}${c.hora ? ` ${c.hora}` : ""}: ${c.titulo}${caso ? ` (${caso})` : ""}`;
+          return `${quando}${c.hora ? ` ${c.hora}` : ""}: ${c.titulo}${caso ? ` (${caso})` : ""}${c.sugestao ? " — a confirmar" : ""}`;
         });
         if (lista.length > 4) linhas.push(`e mais ${lista.length - 4}`);
         this.#enfileirar({

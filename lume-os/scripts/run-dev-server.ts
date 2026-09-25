@@ -430,6 +430,8 @@ const PASSTHROUGH_GATEKEEPER_VARS: Record<string, string[]> = {
     "MCP_PORTAL_TRUST_ANNOTATIONS", "MCP_ALLOW_INSECURE",
   ],
   "gatekeeper-mcp": ["MCP_ALLOW_INSECURE"],
+  // (Lume) The key for lawyers' PJe passwords (32 random bytes, base64) and a DataJud key override.
+  "gatekeeper-casos": ["LUME_CHAVE_CREDENCIAIS", "DATAJUD_API_KEY"],
 };
 
 for (const gk of gatekeepers) {
@@ -514,6 +516,7 @@ for (const gk of gatekeepers) {
   const EXTRA_VENDORS: ServiceBinding[] = [
     { binding: "GATEKEEPER_AGENDA", service: "gatekeeper-casos", entrypoint: "AgendaVendor" },
     { binding: "GATEKEEPER_PESQUISA", service: "gatekeeper-casos", entrypoint: "PesquisaVendor" },
+    { binding: "GATEKEEPER_PROCESSOS", service: "gatekeeper-casos", entrypoint: "ProcessosVendor" },
   ];
   for (const extra of EXTRA_VENDORS) {
     if (gatekeepers.some((gk) => gk.name === extra.service)) config.services.push(extra);
