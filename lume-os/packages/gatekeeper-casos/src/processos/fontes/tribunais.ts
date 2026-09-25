@@ -8,7 +8,9 @@ export type EndpointMni = { tribunal: string; grau: 1 | 2; url: string };
 
 /** Known PJe MNI endpoints. Checked from the Cloudflare network by the admin diagnostic. */
 export const ENDPOINTS_MNI_PADRAO: EndpointMni[] = [
-  { tribunal: "TJMG", grau: 1, url: "https://pje.tjmg.jus.br/pje/intercomunicacao" },
+  // The WSDL names pje.tjmg.jus.br, which redirects SOAP calls to its login page; the same
+  // service answers on the public-consultation host (checked in September 2026).
+  { tribunal: "TJMG", grau: 1, url: "https://pje-consulta-publica.tjmg.jus.br/pje/intercomunicacao" },
   { tribunal: "TJMG", grau: 2, url: "https://pje2.tjmg.jus.br/pje/intercomunicacao" },
   { tribunal: "TJBA", grau: 1, url: "https://pje.tjba.jus.br/pje/intercomunicacao" },
   { tribunal: "TJBA", grau: 2, url: "https://pje2g.tjba.jus.br/pje/intercomunicacao" },

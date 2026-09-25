@@ -5,6 +5,7 @@ import type { DocumentVault } from "../src/cofre/vault.js";
 import { chaveCredenciais, cifrar, decifrar } from "../src/processos/cifra.js";
 import { envelope, lerAvisos, lerTeor } from "../src/processos/fontes/mni.js";
 import { diasDoTexto } from "../src/processos/prazo-texto.js";
+import respostaTjmg from "./fixtures/mni-tjmg-avisos-senha-invalida.txt?raw";
 import { ProcessosManagementApi, ProcessosSessionImpl } from "../src/processos/processos.js";
 import type { ProcessosStore } from "../src/processos/store.js";
 import type { CaseRegistry } from "../src/registry.js";
@@ -108,6 +109,10 @@ describe("MNI", () => {
     const xml = envelope("consultarAvisosPendentes", [["idConsultante", "12345678901"], ["senhaConsultante", "a<b&c"]]);
     expect(xml).toContain('<ser:consultarAvisosPendentes><tip:idConsultante>12345678901</tip:idConsultante><tip:senhaConsultante>a&lt;b&amp;c</tip:senhaConsultante></ser:consultarAvisosPendentes>');
     expect(xml).toContain('xmlns:ser="http://www.cnj.jus.br/servico-intercomunicacao-2.2.3/"');
+  });
+
+  it("lê a resposta real do TJMG a uma senha errada (multipart MTOM)", () => {
+    expect(() => lerAvisos(respostaTjmg)).toThrow(expect.objectContaining({ tipo: "credencial", message: "Erro ao realizar login via MNI. null" }));
   });
 
   it("lê avisos e teor, e separa senha errada de outras falhas", () => {

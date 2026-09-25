@@ -459,7 +459,7 @@ function fakeProcessos(spec: FakeProcessos): typeof fetch {
         return soap(`<ns2:${op}Resposta ${ns}><sucesso>false</sucesso><mensagem>Usuário ou senha inválidos.</mensagem></ns2:${op}Resposta>`);
       }
       // Everything lives in the first instance; the second has nothing pending.
-      const primeiroGrau = url.startsWith("https://pje.tjmg.jus.br/");
+      const primeiroGrau = url.startsWith("https://pje-consulta-publica.tjmg.jus.br/");
       if (op === "consultarAvisosPendentes") {
         const avisos = (primeiroGrau ? spec.avisos ?? [] : []).map((a) =>
           `<ns2:aviso idAviso="${a.idAviso}" tipoComunicacao="${a.tipo ?? "INT"}">` +
