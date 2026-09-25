@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, relative, resolve } from "node:path";
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
@@ -495,6 +496,9 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
   ];
 
   setCommon(workshop, config, config.workers.workshop.name);
+  // (Lume) Every five minutes the Workshop collects the reminders gatekeepers queued (the Agenda's
+  // morning summary and hearing reminders) and pushes them to users' devices.
+  workshop.triggers = { crons: [NOTIFICATION_CRON] };
   workshop.vars = {
     ADMINS: config.access.admins,
     ...(isPasswordMode(config) ? {} : {
@@ -698,6 +702,47 @@ async function readJsonc<T>(path: string): Promise<T> {
   return result;
 }
 
+/** How often the Workshop delivers gatekeeper notifications. */
+export const NOTIFICATION_CRON = "*/5 * * * *";
+
+/**
+ * (Lume) The Web Push key pair, generated once and kept as Workshop secrets: replacing it would
+ * silently cut off every device that enabled notifications, so an existing pair is never touched.
+ */
+function ensureVapidSecrets(config: DeploymentConfig): void {
+  const cwd = join(root, packageDirs.workshop);
+  const entry = resolveBinEntry(cwd, "wrangler");
+  const env = { ...process.env, CLOUDFLARE_ACCOUNT_ID: config.accountId };
+  const wrangler = (args: string[], input?: string) => {
+    const [command, argv] = entry
+      ? [process.execPath, [entry, ...args]] as const
+      : pnpmCommand(["exec", "wrangler", ...args], env);
+    return spawnSync(command, argv, { cwd, env, encoding: "utf8", ...(input === undefined ? {} : { input }) });
+  };
+  const name = config.workers.workshop.name;
+  const listed = wrangler(["secret", "list", "--name", name, "--format", "json"]);
+  if (listed.status !== 0) {
+    console.warn(`\nCould not list the Workshop's secrets, so push notifications were not set up:\n${listed.stderr}`);
+    return;
+  }
+  const names = new Set((JSON.parse(listed.stdout) as { name: string }[]).map((secret) => secret.name));
+  if (names.has("VAPID_PUBLIC_KEY") && names.has("VAPID_PRIVATE_KEY")) return;
+  const keys = generateVapidKeys();
+  // Through stdin, so the private key never touches the disk or the process list.
+  const stored = wrangler(["secret", "bulk", "--name", name],
+    JSON.stringify({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey }));
+  if (stored.status !== 0) throw new Error(`Storing the push notification keys failed:\n${stored.stderr}`);
+  console.log("Generated the Web Push (VAPID) keys and stored them as Workshop secrets.");
+}
+
+/** A P-256 key pair in the form web push wants: the raw public point and the private scalar, base64url. */
+export function generateVapidKeys(): { publicKey: string; privateKey: string } {
+  const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const jwk = privateKey.export({ format: "jwk" });
+  const point = publicKey.export({ format: "der", type: "spki" }).subarray(-65);
+  return { publicKey: Buffer.from(point).toString("base64url"), privateKey: jwk.d! };
+}
+
 // Every validateConfig message names a config path, so say which file those paths live in.
 async function readDeployment(path: string): Promise<DeploymentConfig> {
   const config = await readJsonc<DeploymentConfig>(path);
@@ -810,6 +855,7 @@ async function main(): Promise<void> {
     deployWorker(packageDirs.scheduler, deployArgs);
     deployWorker(packageDirs.casos, deployArgs);
     deployWorker(packageDirs.workshop, deployArgs);
+    if (!check) ensureVapidSecrets(config);
     // Last: it binds every one of the above.
     deployWorker(packageDirs.router, deployArgs);
   } finally {

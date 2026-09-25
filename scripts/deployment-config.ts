@@ -182,6 +182,8 @@ export type ProdWranglerConfig =
     ai?: BindingDecl;
     /** Secrets wrangler refuses to deploy without. Emitted only when one is genuinely needed. */
     secrets?: { required: string[] };
+    /** Cron triggers. */
+    triggers?: { crons: string[] };
     /** Artifacts namespaces. An array, unlike upstream's single-binding declaration. */
     artifacts?: { binding: string; namespace: string }[];
   };

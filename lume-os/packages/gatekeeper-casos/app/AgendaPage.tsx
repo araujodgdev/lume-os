@@ -230,7 +230,9 @@ function AgendaLista({
           <h1 className="mt-2 text-3xl tracking-[-0.03em]">Prazos e compromissos.</h1>
           <p className="mt-2 max-w-xl text-sm text-kumo-subtle">
             Hoje é {formatarDataComDia(hoje)}. Os prazos são contados com os feriados nacionais, o recesso
-            forense e os feriados cadastrados pelo escritório.
+            forense e os feriados cadastrados pelo escritório. Os responsáveis recebem um resumo às 7h dos
+            dias úteis e um lembrete antes de audiências e reuniões: ative os avisos em Perfil, em cada
+            dispositivo.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

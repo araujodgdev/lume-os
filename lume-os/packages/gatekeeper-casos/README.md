@@ -56,6 +56,11 @@ The same Worker serves a second vendor, `AgendaVendor`: the firm's calendar of p
   - The form recounts the deadline as the lawyer types.
   - Only admins register holidays.
   - The Casos page shows each case's pending entries.
+- **Reminders.** `AgendaVendor` sets `providesNotifications`. Every five minutes the Workshop calls `takeNotifications()`, and `AgendaStore.retirarAvisos()` first queues what is due:
+  - a summary at 07:00 on working days for each responsible lawyer, covering overdue items, today and the next 7 working days;
+  - a reminder two hours before each hearing and meeting.
+
+  A reminder stays queued until the Workshop acknowledges it, is generated once (`avisos_gerados`), and goes stale after a day. Lawyers turn push on per device in Perfil → Avisos.
 - **Who is viewing.** The Workshop passes the viewer's login in `AppUiContext.username` (a Lume kernel change), which the page uses for "Só os meus". Responsible lawyers are logins, as in Casos.
 
 ## Layout

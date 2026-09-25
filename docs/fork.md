@@ -47,6 +47,9 @@ Branding and pt-BR copy apply across the app; see the commits that rename Cloudf
 | What | Where | How |
 | --- | --- | --- |
 | Who opened a gatekeeper page | `workshop-shared/src/gatekeeper.ts` (`AppUiContext.username`), `workshop-backend/src/server.ts` (`getGatekeeperApp`) | The Workshop passes the user's login next to `isAdmin`, so the Agenda can filter "my" entries. Optional, so older gatekeepers ignore it |
+| Push notifications from gatekeepers | `workshop-shared/src/gatekeeper.ts` (`VendorDescription.providesNotifications`, `GatekeeperVendor.takeNotifications`/`ackNotifications`, `GatekeeperNotification`) | A vendor that sets the flag queues reminders; the Workshop pulls them. Pulling, not pushing, because the Casos Worker cannot bind the Workshop that binds it |
+| Delivery | `workshop-backend/src/push-notifications.ts`, `web-push.ts` (new), `server.ts` (`scheduled`, four `AuthenticatedApi` methods), `user.ts` (`pushSubscriptions`, three methods), `env.d.ts` | A cron every five minutes polls the vendors and pushes to each user's devices, with VAPID and `aes128gcm` on WebCrypto (checked against RFC 8291's test vector). Expired subscriptions are dropped |
+| Installable app and the switch | `workshop-frontend/public/` (`manifest.webmanifest`, `sw.js`, icons), `index.html`, `src/pushNotifications.ts`, `src/components/PushSettings.tsx`, `SettingsPage.tsx` | Perfil → Avisos turns notifications on per device. On iPhone they need the app on the home screen, and the page says so |
 
 `/blueprint/$id` stays reachable on purpose. `createFromFormat` sends a format that needs setup to that page.
 

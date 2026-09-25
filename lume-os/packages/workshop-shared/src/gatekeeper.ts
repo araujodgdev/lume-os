@@ -76,6 +76,30 @@ export type VendorDescription = {
    * management UI (see AccountDescription.singleton / .providesUi).
    */
   autoProvisionsAccount?: boolean;
+
+  /**
+   * (Lume) The vendor implements `takeNotifications()` and `ackNotifications()`: the Workshop
+   * polls them on a schedule and delivers each notification to the named users' devices. Callers
+   * gate on this flag rather than probing.
+   */
+  providesNotifications?: boolean;
+}
+
+/**
+ * (Lume) A reminder a gatekeeper wants shown on its users' devices. The gatekeeper decides who and
+ * when; the Workshop only delivers, by push, to every device a user enabled.
+ */
+export type GatekeeperNotification = {
+  /** Stable id; delivery is acknowledged with it, so a lost acknowledgement delivers twice at most. */
+  id: string;
+  /** Logins of the users to notify. */
+  usernames: string[];
+  title: string;
+  body: string;
+  /** Path to open on click, e.g. "/gatekeepers/agenda". */
+  url?: string;
+  /** Replaces an earlier notification with the same tag on the device. */
+  tag?: string;
 }
 
 /**
@@ -515,6 +539,15 @@ export interface GatekeeperVendor extends WorkerEntrypoint {
    *   one-off situations only.
    */
   getTypeScriptTypes(): Promise<string>;
+
+  /**
+   * (Lume) Notifications waiting for delivery, when `describe()` sets `providesNotifications`. The
+   * vendor keeps returning one until `ackNotifications()` names it.
+   */
+  takeNotifications?(): Promise<GatekeeperNotification[]>;
+
+  /** (Lume) Marks notifications as delivered. */
+  ackNotifications?(ids: string[]): Promise<void>;
 
   /**
    * Mint a NEW connected account, with no OAuth flow. Safe to expose on this public interface: it

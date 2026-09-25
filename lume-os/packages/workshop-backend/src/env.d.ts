@@ -77,6 +77,11 @@ declare global {
       // Public base URL of the deployment.
       PUBLIC_BASE_URL?: string;
 
+      // (Lume) Web Push VAPID key pair, base64url (raw public point, private scalar). The deploy
+      // generates them once and stores them as secrets; without them push is off.
+      VAPID_PUBLIC_KEY?: string;
+      VAPID_PRIVATE_KEY?: string;
+
       // Daily free-tier LLM-call limit (per user). Defaults to DEFAULT_DAILY_LLM_CALL_LIMIT.
       DAILY_LLM_CALL_LIMIT?: string;
 

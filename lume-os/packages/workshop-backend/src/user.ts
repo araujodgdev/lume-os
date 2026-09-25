@@ -12,6 +12,8 @@ import type { AdminSettings } from "./admin-settings.js";
 import { isReservedBlueprintKey, readBlueprintKvRecord } from "./blueprint-archive.js";
 import { filterEnabledResources, isResourceDisabled, readAdminConfig } from "./admin-config.js";
 import { buildGatekeeperVendorMap } from "./auth/auth-vendors.js";
+import { deliver, MAX_DEVICES, type PushMessage, type PushSubscriptionRecord } from "./push-notifications.js";
+import { validatePushSubscription } from "./web-push.js";
 
 const logger = createWorkshopLogger("workshop.user");
 
@@ -179,6 +181,10 @@ function makeUserStorage(storage: DurableObjectStorage) {
       // Outputs page is one cheap read of the user's own DO. Entries are meaningful only while the
       // corresponding `gadgets` record exists; `syncWorkspaceOutputs()` and the `gadgets` deletion
       // paths keep the two in step.
+      // (Lume) Devices that enabled push notifications, by endpoint.
+      pushSubscriptions: collection<PushSubscriptionRecord>()({
+        primaryKey: "endpoint",
+      }),
       outputs: collection<OutputRecord>()({
         primaryKey: record => `${record.workspaceId}:${record.workpieceId}`,
         nonUniqueIndexes: {
@@ -1365,6 +1371,29 @@ export class UserDurableObject extends DurableObject<Cloudflare.Env> {
     let record = this.storage.connectedAccounts.get(accountId);
     if (!record?.description.providesUi) throw new Error("No such app.");
     return (record.account as unknown as SingletonAccountStub).startAppUi(context);
+  }
+
+  /** (Lume) Stores a device's push subscription, dropping the oldest past MAX_DEVICES. */
+  registerPushSubscription(subscription: unknown): void {
+    let valid = validatePushSubscription(subscription);
+    this.storage.pushSubscriptions.put({ ...valid, createdAt: Date.now() });
+    let devices = Array.from(this.storage.pushSubscriptions.list()).toSorted((a, b) => a.createdAt - b.createdAt);
+    for (let device of devices.slice(0, Math.max(0, devices.length - MAX_DEVICES))) {
+      this.storage.pushSubscriptions.delete(device.endpoint);
+    }
+  }
+
+  /** (Lume) Forgets a device's push subscription. */
+  removePushSubscription(endpoint: string): void {
+    this.storage.pushSubscriptions.delete(String(endpoint));
+  }
+
+  /** (Lume) Pushes a notification to every device of this user; returns how many took it. */
+  async deliverNotification(message: PushMessage): Promise<number> {
+    let devices = Array.from(this.storage.pushSubscriptions.list());
+    let { delivered, expired } = await deliver(this.env, devices, message);
+    for (let endpoint of expired) this.storage.pushSubscriptions.delete(endpoint);
+    return delivered;
   }
 
   async ensureAccountResources(accountId: number, resourceUrlPatterns: string[]): Promise<{url?: string}> {

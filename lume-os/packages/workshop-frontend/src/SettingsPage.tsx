@@ -8,6 +8,7 @@ import { User, Pencil, Check, X, Lock, Camera, Copy, Eye, EyeSlash } from '@phos
 import { useAvatar, invalidateAvatarCache } from './useAvatar'
 import { compressAvatar, avatarBlobUrl } from './avatarUtils'
 import UsageSettings from './components/billing/UsageSettings'
+import PushSettings from './components/PushSettings'
 import { useDocumentTitle } from './useDocumentTitle'
 import PageHeader from './components/brand/PageHeader'
 import { MonoLabel } from './components/brand/BrandControls'
@@ -379,6 +380,9 @@ export default function SettingsPage() {
         </section>
 
         {/* Usage & billing — only when the Cloudflare limits flow is enabled server-side */}
+        {/* (Lume) Agenda reminders on this device */}
+        <PushSettings />
+
         <UsageSettings />
 
         {/* Security — only for password accounts (hidden under CF Access or gatekeeper sign-in) */}

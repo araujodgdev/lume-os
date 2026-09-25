@@ -190,3 +190,53 @@ describe("AgendaManagementApi", () => {
     expect(await advogada.listar({ status: "todos" })).toEqual([]);
   });
 });
+
+describe("avisos", () => {
+  // Tuesday 10/03/2026, 07:30 in Brasília.
+  const agora = Date.parse("2026-03-10T10:30:00Z");
+
+  it("gera o resumo das 7h por responsável e o lembrete 2h antes da audiência, sem repetir", async () => {
+    const domain = "agenda-avisos";
+    await prepararCaso(domain);
+    const store = testEnv.AGENDA_STORE.getByName(domain);
+    const api = new AgendaManagementApi(store, testEnv.CASE_REGISTRY.getByName(domain), false, "ana");
+    await api.criar({ tipo: "prazo", titulo: "Contestação", casoId: "caso-1", data: "2026-03-10" });
+    await api.criar({ tipo: "tarefa", titulo: "Ligar para o perito", data: "2026-03-05", responsaveis: ["bruno"] });
+    const audiencia = await api.criar({
+      tipo: "audiencia", titulo: "Instrução", casoId: "caso-1", data: "2026-03-10", hora: "09:00", local: "Sala 3",
+    });
+    await api.criar({ tipo: "reuniao", titulo: "Sem ninguém", data: "2026-03-10", hora: "09:30" });
+    const casos = { "caso-1": { titulo: "Silva x Banco Alfa", responsaveis: ["ana"] } };
+
+    const avisos = await store.retirarAvisos(casos, agora);
+    expect(avisos.map((a) => a.id).toSorted()).toEqual([
+      `lembrete:${audiencia.id}:2026-03-10T09:00`,
+      "resumo:2026-03-10:ana",
+      "resumo:2026-03-10:bruno",
+    ]);
+    const ana = avisos.find((a) => a.id === "resumo:2026-03-10:ana")!;
+    expect(ana).toMatchObject({ usernames: ["ana"], title: "Agenda: 2 para hoje", url: "/gatekeepers/agenda", tag: "agenda-resumo" });
+    expect(ana.body).toBe("Hoje: Contestação (Silva x Banco Alfa)\nHoje 09:00: Instrução (Silva x Banco Alfa)");
+    expect(avisos.find((a) => a.id === "resumo:2026-03-10:bruno")).toMatchObject({
+      title: "Agenda: 1 vencido(s)", body: "Vencido 05/03: Ligar para o perito",
+    });
+    expect(avisos.find((a) => a.id.startsWith("lembrete"))).toMatchObject({
+      usernames: ["ana"], title: "Audiência às 09:00: Instrução", body: "Silva x Banco Alfa · Sala 3",
+    });
+
+    // Until acknowledged they come back, never duplicated; once acknowledged they are gone.
+    expect(await store.retirarAvisos(casos, agora + 60_000)).toHaveLength(3);
+    await store.confirmarAvisos(avisos.map((a) => a.id));
+    expect(await store.retirarAvisos(casos, agora + 120_000)).toEqual([]);
+  });
+
+  it("não manda resumo antes das 7h nem em fim de semana", async () => {
+    const domain = "agenda-avisos-cedo";
+    const store = testEnv.AGENDA_STORE.getByName(domain);
+    const api = new AgendaManagementApi(store, testEnv.CASE_REGISTRY.getByName(domain), false, "ana");
+    await api.criar({ tipo: "tarefa", titulo: "Protocolar", data: "2026-03-10", responsaveis: ["ana"] });
+    expect(await store.retirarAvisos({}, Date.parse("2026-03-10T09:30:00Z"))).toEqual([]);
+    expect(await store.retirarAvisos({}, Date.parse("2026-03-14T12:00:00Z"))).toEqual([]);
+    expect(await store.retirarAvisos({}, Date.parse("2026-03-10T10:00:00Z"))).toHaveLength(1);
+  });
+});

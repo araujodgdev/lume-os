@@ -7,6 +7,8 @@ import {
   buildCommands,
   cofreOcrEnabled,
   generateConfigs,
+  generateVapidKeys,
+  NOTIFICATION_CRON,
   validateConfig,
 } from "./deploy.ts";
 import type {
@@ -707,4 +709,15 @@ test("skips the Error Reporter build when error reporting is disabled", () => {
   });
   const commands = buildCommands(config).map(({ args }) => args.join(" "));
   assert.equal(commands.some((command) => command.includes("error-reporter")), false);
+});
+
+test("delivers notifications on a schedule and generates Web Push keys", async () => {
+  const generated = generateConfigs(validConfig, await baseConfigs());
+  assert.deepEqual(generated.workshop.triggers, { crons: [NOTIFICATION_CRON] });
+
+  const keys = generateVapidKeys();
+  const point = Buffer.from(keys.publicKey, "base64url");
+  assert.equal(point.length, 65);
+  assert.equal(point[0], 4);
+  assert.equal(Buffer.from(keys.privateKey, "base64url").length, 32);
 });

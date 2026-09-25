@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
-import { Calendario, diasSemExpediente, formatarData, hojeEmBrasilia, type Feriado, type Local } from "./calendario.js";
-import { compararCompromissos, resolver, type DadosCompromisso, type Entrada, type Reprogramado } from "./compromisso.js";
+import type { GatekeeperNotification } from "@gadgets/workshop-shared/gatekeeper";
+import { Calendario, diasSemExpediente, formatarData, hojeEmBrasilia, somarDias, type Feriado, type Local } from "./calendario.js";
+import { compararCompromissos, resolver, responsaveisDe, type DadosCompromisso, type Entrada, type Reprogramado } from "./compromisso.js";
 
 export type { Reprogramado } from "./compromisso.js";
 import { calcularPrazo } from "./prazos.js";
@@ -13,6 +14,22 @@ export const MAX_COMPROMISSOS = 50_000;
 export const MAX_FERIADOS = 2_000;
 
 const NOTA_RECONTAGEM = "Recontado em";
+
+/** The morning summary goes out from this hour, Brasília time. */
+const HORA_RESUMO = 7;
+/** Hearings and meetings are announced this long before they start. */
+const ANTECEDENCIA_LEMBRETE_MS = 2 * 60 * 60 * 1000;
+/** A reminder nobody picked up within a day is stale. */
+const AVISO_VALIDADE_MS = 24 * 60 * 60 * 1000;
+
+function horaEmBrasilia(agora: number): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(agora));
+}
+
+/** Brazil has kept UTC-3 all year since 2019. */
+function inicioEmBrasilia(data: string, hora: string): number {
+  return Date.parse(`${data}T${hora}:00-03:00`);
+}
 
 
 export function agendaFor(exports: Cloudflare.Exports, sharingDomain: string): DurableObjectStub<AgendaStore> {
@@ -40,6 +57,15 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
       CREATE TABLE IF NOT EXISTS feriados (
         id TEXT PRIMARY KEY,
         dados TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS avisos (
+        id TEXT PRIMARY KEY,
+        dados TEXT NOT NULL,
+        criado_em INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS avisos_gerados (
+        chave TEXT PRIMARY KEY,
+        criado_em INTEGER NOT NULL
       );
     `);
   }
@@ -156,6 +182,107 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
     const feriado = JSON.parse(row.dados) as Feriado;
     this.ctx.storage.sql.exec("DELETE FROM feriados WHERE id = ?", id);
     return this.#recontarPendentes(`feriado removido: ${feriado.descricao}`);
+  }
+
+  /**
+   * Reminders waiting for delivery, generating any that are due first: the 07:00 summary on working
+   * days and a reminder two hours before hearings and meetings. `casos` maps case ids to their
+   * titles and responsible lawyers. Each reminder stays here until `confirmarAvisos()`.
+   */
+  retirarAvisos(casos: Record<string, { titulo: string; responsaveis: string[] }>, agora = Date.now()): GatekeeperNotification[] {
+    this.#gerarAvisos(casos, agora);
+    this.ctx.storage.sql.exec("DELETE FROM avisos WHERE criado_em < ?", agora - AVISO_VALIDADE_MS);
+    return this.ctx.storage.sql
+      .exec<{ dados: string }>("SELECT dados FROM avisos ORDER BY criado_em LIMIT 200")
+      .toArray()
+      .map((row) => JSON.parse(row.dados) as GatekeeperNotification);
+  }
+
+  /** Drops delivered reminders. */
+  confirmarAvisos(ids: string[]): void {
+    for (const id of ids.slice(0, 500)) this.ctx.storage.sql.exec("DELETE FROM avisos WHERE id = ?", String(id));
+  }
+
+  #gerarAvisos(casos: Record<string, { titulo: string; responsaveis: string[] }>, agora: number): void {
+    const hoje = hojeEmBrasilia(new Date(agora));
+    const calendario = new Calendario([]);
+    const doCaso = new Map(Object.entries(casos).map(([id, c]) => [id, c.responsaveis]));
+    const tituloCaso = (c: Compromisso) => (c.casoId ? casos[c.casoId]?.titulo : undefined);
+
+    // The morning summary, once per working day.
+    if (horaEmBrasilia(agora) >= HORA_RESUMO && calendario.ehDiaUtil(hoje) && this.#marcar(`resumo:${hoje}`, agora)) {
+      const limite = calendario.somarDiasUteis(hoje, 7);
+      const porPessoa = new Map<string, Compromisso[]>();
+      for (const c of this.consultar({ status: "pendente", ate: limite })) {
+        for (const pessoa of responsaveisDe(c, doCaso)) {
+          const lista = porPessoa.get(pessoa) ?? [];
+          lista.push(c);
+          porPessoa.set(pessoa, lista);
+        }
+      }
+      for (const [pessoa, lista] of porPessoa) {
+        const vencidos = lista.filter((c) => c.data < hoje).length;
+        const deHoje = lista.filter((c) => c.data === hoje).length;
+        const titulo = [
+          vencidos ? `${vencidos} vencido(s)` : undefined,
+          deHoje ? `${deHoje} para hoje` : undefined,
+          lista.length - vencidos - deHoje ? `${lista.length - vencidos - deHoje} nos próximos 7 dias úteis` : undefined,
+        ].filter(Boolean).join(" · ");
+        const linhas = lista.slice(0, 4).map((c) => {
+          const quando = c.data < hoje ? `Vencido ${formatarData(c.data).slice(0, 5)}` :
+            c.data === hoje ? "Hoje" : formatarData(c.data).slice(0, 5);
+          const caso = tituloCaso(c);
+          return `${quando}${c.hora ? ` ${c.hora}` : ""}: ${c.titulo}${caso ? ` (${caso})` : ""}`;
+        });
+        if (lista.length > 4) linhas.push(`e mais ${lista.length - 4}`);
+        this.#enfileirar({
+          id: `resumo:${hoje}:${pessoa}`,
+          usernames: [pessoa],
+          title: `Agenda: ${titulo}`,
+          body: linhas.join("\n"),
+          url: "/gatekeepers/agenda",
+          tag: "agenda-resumo",
+        }, agora);
+      }
+    }
+
+    // Two hours before hearings and meetings.
+    const amanha = somarDias(hoje, 1);
+    for (const c of this.consultar({ status: "pendente", de: hoje, ate: amanha })) {
+      if (!c.hora || (c.tipo !== "audiencia" && c.tipo !== "reuniao")) continue;
+      const inicio = inicioEmBrasilia(c.data, c.hora);
+      if (inicio <= agora || inicio - agora > ANTECEDENCIA_LEMBRETE_MS) continue;
+      const pessoas = responsaveisDe(c, doCaso);
+      if (!pessoas.length || !this.#marcar(`lembrete:${c.id}:${c.data}T${c.hora}`, agora)) continue;
+      const caso = tituloCaso(c);
+      this.#enfileirar({
+        id: `lembrete:${c.id}:${c.data}T${c.hora}`,
+        usernames: pessoas,
+        title: `${c.tipo === "audiencia" ? "Audiência" : "Reunião"} às ${c.hora}: ${c.titulo}`,
+        body: [caso, c.local, c.link ? "Link da videochamada na Agenda" : undefined].filter(Boolean).join(" · ") || "Hoje",
+        url: "/gatekeepers/agenda",
+        tag: `agenda-${c.id}`,
+      }, agora);
+    }
+
+    this.ctx.storage.sql.exec("DELETE FROM avisos_gerados WHERE criado_em < ?", agora - 40 * 86_400_000);
+  }
+
+  /** Records that a reminder was generated; false when it already was. */
+  #marcar(chave: string, agora: number): boolean {
+    const novo = this.ctx.storage.sql
+      .exec<{ chave: string }>("INSERT OR IGNORE INTO avisos_gerados (chave, criado_em) VALUES (?, ?) RETURNING chave", chave, agora)
+      .toArray();
+    return novo.length > 0;
+  }
+
+  #enfileirar(aviso: GatekeeperNotification, agora: number): void {
+    this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO avisos (id, dados, criado_em) VALUES (?, ?, ?)",
+      aviso.id,
+      JSON.stringify(aviso),
+      agora,
+    );
   }
 
   #feriados(): Feriado[] {

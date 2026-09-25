@@ -15,6 +15,7 @@ import type {
   Gatekeeper,
   GatekeeperConnectCallback,
   GatekeeperConnectOptions,
+  GatekeeperNotification,
   GatekeeperUiFrame,
   GatekeeperUser,
   GatekeeperUserVerifier,
@@ -730,7 +731,23 @@ export class AgendaVendor extends WorkerEntrypoint<Cloudflare.Env, Partial<Agend
         "tarefas e reuniões, ligados aos casos. O agente calcula e agenda prazos com aprovação.",
       autoProvisionsAccount: true,
       providesAuth: false,
+      providesNotifications: true,
     };
+  }
+
+  /** Reminders due for delivery: the morning summary and hearing and meeting reminders. */
+  async takeNotifications(): Promise<GatekeeperNotification[]> {
+    const domain = this.ctx.props?.sharingDomain || DEFAULT_SHARING_DOMAIN;
+    const casos = await registryFor(this.ctx.exports, domain).list();
+    return agendaFor(this.ctx.exports, domain).retirarAvisos(
+      Object.fromEntries(casos.map((caso) => [caso.id, { titulo: caso.titulo, responsaveis: caso.responsaveis }])),
+    );
+  }
+
+  /** Drops reminders the Workshop delivered. */
+  async ackNotifications(ids: string[]): Promise<void> {
+    const domain = this.ctx.props?.sharingDomain || DEFAULT_SHARING_DOMAIN;
+    await agendaFor(this.ctx.exports, domain).confirmarAvisos(ids);
   }
 
   @skipRpcValidation()

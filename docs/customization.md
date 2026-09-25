@@ -236,3 +236,12 @@ Prefer wrapper-owned Workers and [service bindings](https://developers.cloudflar
 8. If needed, revert that commit and redeploy, or use [Workers rollback](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) when bindings remain compatible.
 
 Do not update `lume-os/` blindly. The deployment script derives from upstream configs so incompatible base changes remain visible during review and checks.
+
+## Push notifications
+
+The Agenda's reminders reach lawyers' phones and browsers by Web Push. The deploy sets it up by itself:
+
+- It adds a cron trigger (`*/5 * * * *`) to the Workshop, which collects queued reminders from the gatekeepers and pushes them.
+- On the first deploy it generates a VAPID key pair and stores it as the Workshop secrets `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (through `wrangler secret bulk`, reading from stdin). It never replaces an existing pair: new keys would silently cut off every device that already enabled notifications.
+
+Each lawyer turns notifications on per device in **Perfil → Avisos**. On iPhone and iPad this works only once the Lume is added to the home screen (Share → Adicionar à Tela de Início), which the page explains. To try it locally, export both keys before `pnpm run run-local`; `run-dev-server.ts` passes them through.
