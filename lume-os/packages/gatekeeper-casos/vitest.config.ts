@@ -11,6 +11,8 @@ export default defineConfig({
         compatibilityDate: "2026-02-02",
         compatibilityFlags: ["allow_irrevocable_stub_storage", "nodejs_als", "nodejs_compat"],
         r2Buckets: ["COFRE"],
+        // A test-only key for the lawyers' PJe passwords.
+        bindings: { LUME_CHAVE_CREDENCIAIS: "Q3QrpMEu4StYyEDpmEVTwWxxuvnxeQBL7Wo+mOfmpZA=" },
         durableObjects: {
           CASE_REGISTRY: { className: "CaseRegistry", useSQLite: true },
           DOCUMENT_VAULT: { className: "DocumentVault", useSQLite: true },
@@ -28,6 +30,10 @@ export default defineConfig({
           PESQUISA_GATEKEEPER: { className: "PesquisaGatekeeper", useSQLite: true },
           PESQUISA_TEST_PARENT: { className: "PesquisaTestParent", useSQLite: true },
           PESQUISA_TEST_HOOKS: { className: "PesquisaTestHooks", useSQLite: true },
+          PROCESSOS_STORE: { className: "ProcessosStore", useSQLite: true },
+          PROCESSOS_GATEKEEPER: { className: "ProcessosGatekeeper", useSQLite: true },
+          PROCESSOS_TEST_PARENT: { className: "ProcessosTestParent", useSQLite: true },
+          PROCESSOS_TEST_HOOKS: { className: "ProcessosTestHooks", useSQLite: true },
         },
       },
     }),

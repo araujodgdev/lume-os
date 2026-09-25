@@ -246,6 +246,12 @@ test("generates Access-mode Workshop and Context configs", async () => {
       entrypoint: "PesquisaVendor",
       props: { sharingDomain: "https://os.example.com" },
     },
+    {
+      binding: "GATEKEEPER_PROCESSOS",
+      service: "acme-lume-os-casos",
+      entrypoint: "ProcessosVendor",
+      props: { sharingDomain: "https://os.example.com" },
+    },
   ]);
   assert.deepEqual(generated.workshop.kv_namespaces, [
     { binding: "BLUEPRINTS", id: "blueprints-kv-id" },

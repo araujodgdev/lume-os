@@ -12,5 +12,12 @@ declare namespace Cloudflare {
     CASOS_OCR_MODEL?: string;
     /** Browser Rendering, for court sites that need a real browser (reCAPTCHA, bot protection). */
     BROWSER?: Fetcher;
+    /**
+     * Key for lawyers' PJe passwords (32 bytes, base64). The deploy generates it once and never
+     * replaces it: a new key loses every stored password.
+     */
+    LUME_CHAVE_CREDENCIAIS?: string;
+    /** Overrides the CNJ's public DataJud API key when the CNJ rotates it. */
+    DATAJUD_API_KEY?: string;
   }
 }

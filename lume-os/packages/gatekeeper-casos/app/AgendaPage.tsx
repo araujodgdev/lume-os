@@ -37,6 +37,8 @@ export type AgendaClient = {
   feriados(): Promise<Feriado[]>;
   adicionarFeriado(feriado: NovoFeriado): Promise<Reprogramado[]>;
   removerFeriado(id: string): Promise<Reprogramado[]>;
+  confirmarSugestao(id: string): Promise<Compromisso>;
+  descartarSugestao(id: string): Promise<void>;
   preferencias(): Promise<{ resumoConversa: boolean }>;
   salvarPreferencias(preferencias: { resumoConversa: boolean }): Promise<{ resumoConversa: boolean }>;
 };
@@ -214,6 +216,15 @@ function AgendaLista({
     }
   }
 
+  async function acaoSugestao(acao: () => Promise<unknown>) {
+    try {
+      await acao();
+      await carregar();
+    } catch (caught) {
+      setErro(messageOf(caught));
+    }
+  }
+
   async function excluir(c: Compromisso) {
     if (!window.confirm(`Excluir "${c.titulo}"? Não dá para desfazer.`)) return;
     try {
@@ -294,6 +305,13 @@ function AgendaLista({
       </div>
 
       {erro && <p role="alert" className="text-sm text-kumo-danger">{erro}</p>}
+      <Sugestoes
+        itens={lista.filter((c) => c.sugestao && c.status === "pendente")}
+        casos={tituloDoCaso}
+        onConfirmar={(c) => void acaoSugestao(() => api.confirmarSugestao(c.id))}
+        onDescartar={(c) => void acaoSugestao(() => api.descartarSugestao(c.id))}
+        onEditar={onEditar}
+      />
       {carregando && lista.length === 0 ? (
         <p className="text-sm text-kumo-subtle">Carregando…</p>
       ) : lista.length === 0 ? (
@@ -301,7 +319,7 @@ function AgendaLista({
           Nada por aqui. Cadastre um compromisso ou peça ao agente para ler as intimações dos casos.
         </div>
       ) : (
-        agrupar(lista, hoje).map((grupo) => (
+        agrupar(lista.filter((c) => !c.sugestao), hoje).map((grupo) => (
           <section key={grupo.titulo} aria-label={grupo.titulo} className="flex flex-col gap-2">
             <p className={`font-mono text-[11px] uppercase tracking-[0.08em] ${
               grupo.tom === "perigo" ? "text-kumo-danger" : grupo.tom === "alerta" ? "text-kumo-warning" : "text-kumo-subtle"
@@ -330,6 +348,52 @@ function AgendaLista({
       {usuario && <ResumoDoAgente api={api} />}
       <Feriados api={api} admin={admin} hoje={hoje} onMudou={() => void carregar()} />
     </main>
+  );
+}
+
+/** Deadlines case tracking suggested from notices, waiting for a lawyer. */
+function Sugestoes({
+  itens,
+  casos,
+  onConfirmar,
+  onDescartar,
+  onEditar,
+}: {
+  itens: Compromisso[];
+  casos: Map<string, string>;
+  onConfirmar: (c: Compromisso) => void;
+  onDescartar: (c: Compromisso) => void;
+  onEditar: (c: Compromisso) => void;
+}) {
+  if (itens.length === 0) return null;
+  return (
+    <section aria-label="Sugeridos pelo acompanhamento" className="flex flex-col gap-2 border border-kumo-warning/40 px-4 py-3">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-warning">
+        Sugeridos pelo acompanhamento ({itens.length})
+      </p>
+      <p className="text-xs text-kumo-subtle">
+        Prazos lidos das intimações e publicações. Confira o cálculo e confirme, ou edite antes de confirmar.
+      </p>
+      <ul className="flex flex-col">
+        {itens.map((c) => (
+          <li key={c.id} className="flex flex-wrap items-center gap-3 border-t border-kumo-line py-2 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">{TIPO_LABELS[c.tipo]}: {c.titulo}</span>
+              <span className="block text-xs text-kumo-subtle">
+                {[
+                  `${c.tipo === "prazo" ? "Vence" : "Até"} ${formatarDataComDia(c.data)}`,
+                  c.casoId ? casos.get(c.casoId) : undefined,
+                  c.sugestao?.origem === "pje" ? "intimação do PJe" : c.sugestao?.origem === "djen" ? "publicação no DJEN" : undefined,
+                ].filter(Boolean).join(" · ")}
+              </span>
+            </span>
+            <button type="button" onClick={() => onConfirmar(c)} className="press bg-kumo-brand px-3 py-1.5 text-xs text-white">Confirmar</button>
+            <button type="button" onClick={() => onEditar(c)} className="border border-kumo-line px-3 py-1.5 text-xs hover:bg-kumo-tint">Editar</button>
+            <button type="button" onClick={() => onDescartar(c)} className="px-2 py-1.5 text-xs text-kumo-subtle hover:text-kumo-danger">Descartar</button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

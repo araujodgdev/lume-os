@@ -4,12 +4,12 @@ import { base64UrlToBytes, enablePush, pushSupport, type PushApi } from "./pushN
 
 const KEY = "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4";
 
-function api(key: string | null = KEY): PushApi & { registerPushSubscription: ReturnType<typeof vi.fn> } {
+function api(key: string | null = KEY) {
   return {
-    getPushPublicKey: vi.fn(async () => key),
-    registerPushSubscription: vi.fn(async () => {}),
-    removePushSubscription: vi.fn(async () => {}),
-  };
+    getPushPublicKey: vi.fn<PushApi["getPushPublicKey"]>(async () => key),
+    registerPushSubscription: vi.fn<PushApi["registerPushSubscription"]>(async () => {}),
+    removePushSubscription: vi.fn<PushApi["removePushSubscription"]>(async () => {}),
+  } satisfies PushApi;
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -31,7 +31,7 @@ describe("push neste dispositivo", () => {
   });
 
   it("não pede permissão quando o servidor não tem chave", async () => {
-    const requestPermission = vi.fn();
+    const requestPermission = vi.fn<() => Promise<string>>();
     vi.stubGlobal("Notification", { requestPermission });
     await expect(enablePush(api(null))).rejects.toThrow("não foram configurados");
     expect(requestPermission).not.toHaveBeenCalled();
@@ -42,12 +42,12 @@ describe("push neste dispositivo", () => {
       options: { applicationServerKey: null },
       toJSON: () => ({ endpoint: "https://push.example.com/1", keys: { p256dh: KEY, auth: "BTBZMqHH6r4Tts7J_aSIgg" } }),
     };
-    const subscribe = vi.fn(async () => subscription);
-    vi.stubGlobal("Notification", { requestPermission: vi.fn(async () => "granted") });
+    const subscribe = vi.fn<(options: unknown) => Promise<typeof subscription>>(async () => subscription);
+    vi.stubGlobal("Notification", { requestPermission: vi.fn<() => Promise<string>>(async () => "granted") });
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
       value: {
-        register: vi.fn(async () => ({ pushManager: { getSubscription: async () => null, subscribe } })),
+        register: vi.fn<() => Promise<unknown>>(async () => ({ pushManager: { getSubscription: async () => null, subscribe } })),
         ready: Promise.resolve(),
       },
     });
@@ -60,7 +60,7 @@ describe("push neste dispositivo", () => {
   });
 
   it("explica quando o navegador nega a permissão", async () => {
-    vi.stubGlobal("Notification", { requestPermission: vi.fn(async () => "denied") });
+    vi.stubGlobal("Notification", { requestPermission: vi.fn<() => Promise<string>>(async () => "denied") });
     await expect(enablePush(api())).rejects.toThrow("não deu permissão");
   });
 });

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, relative, resolve } from "node:path";
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
@@ -580,6 +580,12 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       entrypoint: "PesquisaVendor",
       props: { sharingDomain: config.context.sharingDomain ?? origin },
     },
+    {
+      binding: "GATEKEEPER_PROCESSOS",
+      service: config.workers.casos.name,
+      entrypoint: "ProcessosVendor",
+      props: { sharingDomain: config.context.sharingDomain ?? origin },
+    },
   ];
   workshop.kv_namespaces = [
     { binding: "BLUEPRINTS", ...(config.resources.blueprintsKvNamespaceId
@@ -714,11 +720,19 @@ async function readJsonc<T>(path: string): Promise<T> {
 export const NOTIFICATION_CRON = "*/5 * * * *";
 
 /**
- * (Lume) The Web Push key pair, generated once and kept as Workshop secrets: replacing it would
- * silently cut off every device that enabled notifications, so an existing pair is never touched.
+ * (Lume) Generates a Worker's secrets once. Existing values are never touched: replacing the Web
+ * Push keys would silently cut off every device that enabled notifications, and replacing the
+ * credentials key would make every stored PJe password unreadable.
  */
-function ensureVapidSecrets(config: DeploymentConfig): void {
-  const cwd = join(root, packageDirs.workshop);
+function ensureSecrets(
+  config: DeploymentConfig,
+  packageDir: string,
+  worker: string,
+  names: string[],
+  generate: () => Record<string, string>,
+  label: string,
+): void {
+  const cwd = join(root, packageDir);
   const entry = resolveBinEntry(cwd, "wrangler");
   const env = { ...process.env, CLOUDFLARE_ACCOUNT_ID: config.accountId };
   const wrangler = (args: string[], input?: string) => {
@@ -727,20 +741,31 @@ function ensureVapidSecrets(config: DeploymentConfig): void {
       : pnpmCommand(["exec", "wrangler", ...args], env);
     return spawnSync(command, argv, { cwd, env, encoding: "utf8", ...(input === undefined ? {} : { input }) });
   };
-  const name = config.workers.workshop.name;
-  const listed = wrangler(["secret", "list", "--name", name, "--format", "json"]);
+  const listed = wrangler(["secret", "list", "--name", worker, "--format", "json"]);
   if (listed.status !== 0) {
-    console.warn(`\nCould not list the Workshop's secrets, so push notifications were not set up:\n${listed.stderr}`);
+    console.warn(`\nCould not list the secrets of ${worker}, so the ${label} were not set up:\n${listed.stderr}`);
     return;
   }
-  const names = new Set((JSON.parse(listed.stdout) as { name: string }[]).map((secret) => secret.name));
-  if (names.has("VAPID_PUBLIC_KEY") && names.has("VAPID_PRIVATE_KEY")) return;
-  const keys = generateVapidKeys();
-  // Through stdin, so the private key never touches the disk or the process list.
-  const stored = wrangler(["secret", "bulk", "--name", name],
-    JSON.stringify({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey }));
-  if (stored.status !== 0) throw new Error(`Storing the push notification keys failed:\n${stored.stderr}`);
-  console.log("Generated the Web Push (VAPID) keys and stored them as Workshop secrets.");
+  const existing = new Set((JSON.parse(listed.stdout) as { name: string }[]).map((secret) => secret.name));
+  if (names.every((name) => existing.has(name))) return;
+  // Through stdin, so the keys never touch the disk or the process list.
+  const stored = wrangler(["secret", "bulk", "--name", worker], JSON.stringify(generate()));
+  if (stored.status !== 0) throw new Error(`Storing the ${label} failed:\n${stored.stderr}`);
+  console.log(`Generated the ${label} and stored them as secrets of ${worker}.`);
+}
+
+function ensureVapidSecrets(config: DeploymentConfig): void {
+  ensureSecrets(config, packageDirs.workshop, config.workers.workshop.name, ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"], () => {
+    const keys = generateVapidKeys();
+    return { VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey };
+  }, "Web Push (VAPID) keys");
+}
+
+/** (Lume) The AES-256 key that encrypts lawyers' PJe passwords in the Casos Worker. */
+function ensureCredentialsKey(config: DeploymentConfig): void {
+  ensureSecrets(config, packageDirs.casos, config.workers.casos.name, ["LUME_CHAVE_CREDENCIAIS"], () => ({
+    LUME_CHAVE_CREDENCIAIS: randomBytes(32).toString("base64"),
+  }), "PJe credentials key");
 }
 
 /** A P-256 key pair in the form web push wants: the raw public point and the private scalar, base64url. */
@@ -863,7 +888,10 @@ async function main(): Promise<void> {
     deployWorker(packageDirs.scheduler, deployArgs);
     deployWorker(packageDirs.casos, deployArgs);
     deployWorker(packageDirs.workshop, deployArgs);
-    if (!check) ensureVapidSecrets(config);
+    if (!check) {
+      ensureVapidSecrets(config);
+      ensureCredentialsKey(config);
+    }
     // Last: it binds every one of the above.
     deployWorker(packageDirs.router, deployArgs);
   } finally {

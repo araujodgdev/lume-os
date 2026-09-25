@@ -29,6 +29,10 @@
       "tag": "v4",
       "new_sqlite_classes": ["IndiceJurisprudencia", "BuscaAoVivo", "PesquisaGatekeeper"],
     },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": ["ProcessosStore", "ProcessosGatekeeper"],
+    },
   ],
   // The Cofre's files. The starter's deploy provisions the bucket (or binds resources.cofreBucket)
   // and adds the Workers AI binding, which local development runs without.

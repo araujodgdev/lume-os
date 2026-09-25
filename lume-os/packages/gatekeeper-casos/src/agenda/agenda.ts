@@ -607,6 +607,16 @@ export class AgendaManagementApi extends RpcTarget {
     return this.#store.excluir(id);
   }
 
+  /** Confirms an entry case tracking suggested. */
+  confirmarSugestao(id: string): Promise<Compromisso> {
+    return this.#store.confirmarSugestao(String(id));
+  }
+
+  /** Discards an entry case tracking suggested. */
+  descartarSugestao(id: string): Promise<void> {
+    return this.#store.descartarSugestao(String(id));
+  }
+
   /** Counts a deadline for the form, before saving. */
   async calcularPrazo(regra: RegraPrazo, local?: { tribunal?: string; comarca?: string; casoId?: string }): Promise<CalculoPrazo> {
     const valida = validarRegra(regra);

@@ -246,6 +246,19 @@ The Agenda's reminders reach lawyers' phones and browsers by Web Push. The deplo
 
 Each lawyer turns notifications on per device in **Perfil → Avisos**, and can opt in on the Agenda page to a daily summary written by the agent in a conversation, which runs on their default model and costs one short agent run per working day. On iPhone and iPad this works only once the Lume is added to the home screen (Share → Adicionar à Tela de Início), which the page explains. To try it locally, export both keys before `pnpm run run-local`; `run-dev-server.ts` passes them through.
 
+## Case tracking (Intimações)
+
+Intimações follows the firm's cases in the courts. Enable it like the other Lume connectors (**/admin → Conectores**, set "Intimações" to enabled). Each lawyer then sets up their own access on **Intimações → Minhas credenciais**:
+
+- **OAB numbers**, for the publications in the DJEN (the CNJ's national gazette). Public, no password.
+- **PJe password per court**, for the notices pending in the PJe. The Lume reads them through the MNI, the web service the PJe offers to law-firm software, with the CPF and password the lawyer uses in the PJe (no digital certificate). Listing pending notices does not register notification; only opening one does, and the Lume opens a notice only when the lawyer who received it clicks "Abrir intimação" and confirms.
+
+Every two hours during the day (every six at night) it lists the pending notices, the last five days of DJEN publications and, once a day, each case's docket entries in the DataJud. Anything new notifies the case's lawyers, suggests the deadline in the Agenda ("a confirmar"; tacit notification 10 days after sending for closed PJe notices, the DJe rule for publications) and, if the lawyer keeps "Resumo do agente" on, opens an agent conversation summarizing it.
+
+**Tribunais** lists the MNI address of each court. Admins can correct or add addresses and run **Testar as fontes agora**, which reaches the DJEN, the DataJud and every MNI from the server. These services only answer from Brazil, so the store runs in South America (`locationHint: "sam"`); check the diagnostic after the first deploy.
+
+**Passwords and LGPD.** A PJe password is the lawyer's personal data and a key to their court account. It is encrypted (AES-256-GCM) with the secret `LUME_CHAVE_CREDENCIAIS`, which the deploy generates on the first run and never replaces: a new key makes every stored password unreadable, and lawyers would have to enter them again. The password is never shown back, not to the lawyer, the agent or admins. Only its owner can use it, and each use (listing, opening, testing) is logged on the lawyer's page. Removing a credential deletes it. The DataJud key is the CNJ's public one; set `DATAJUD_API_KEY` on the Casos Worker if the CNJ rotates it.
+
 ## Case-law research (Pesquisa)
 
 Pesquisa needs no configuration. On first use its index starts importing the STJ's open data (every monthly "espelhos de acórdãos" file of each judging body, and the repetitive-appeal themes), one file per alarm; the import takes a while and then checks for new months daily. **Pesquisa → Fontes** (admins) shows the import and runs a test search on every live source.
