@@ -46,7 +46,7 @@ import {
   type Filtro,
 } from "./compromisso.js";
 import { validarRegra } from "./prazos.js";
-import { agendaFor, type AgendaStore, type Reprogramado } from "./store.js";
+import { agendaFor, type AgendaStore, type PreferenciasAgenda, type Reprogramado } from "./store.js";
 import type {
   AgendaSession,
   AlteracoesCompromisso,
@@ -623,6 +623,19 @@ export class AgendaManagementApi extends RpcTarget {
   /** The firm's registered holidays and suspensions. */
   feriados(): Promise<Feriado[]> {
     return this.#store.feriados();
+  }
+
+  /** The viewer's reminder preferences. */
+  async preferencias(): Promise<PreferenciasAgenda> {
+    if (!this.#usuario) return { resumoConversa: false };
+    return this.#store.preferencias(this.#usuario);
+  }
+
+  /** Changes the viewer's reminder preferences. */
+  async salvarPreferencias(preferencias: PreferenciasAgenda): Promise<PreferenciasAgenda> {
+    if (!this.#usuario) throw new Error("Não foi possível identificar o seu usuário.");
+    if (typeof preferencias?.resumoConversa !== "boolean") throw new TypeError("resumoConversa deve ser true ou false.");
+    return this.#store.salvarPreferencias(this.#usuario, { resumoConversa: preferencias.resumoConversa });
   }
 
   /** Registers a holiday or suspension. Admins only. Returns the deadlines it moved. */

@@ -1388,6 +1388,20 @@ export class UserDurableObject extends DurableObject<Cloudflare.Env> {
     this.storage.pushSubscriptions.delete(String(endpoint));
   }
 
+  /**
+   * (Lume) The workspace that holds agent conversations started by gatekeepers (the Agenda's daily
+   * summary), created on first use under `newId`. Null for a user who never signed up.
+   */
+  async lumeConversationWorkspace(newId: string, title: string): Promise<string | null> {
+    if (!this.storage.created.get()) return null;
+    let key = "lume:conversationWorkspace";
+    let existing = this.ctx.storage.kv.get<string>(key);
+    if (existing && this.storage.gadgets.get(existing)) return existing;
+    await this.newGadget(newId, title);
+    this.ctx.storage.kv.put(key, newId);
+    return newId;
+  }
+
   /** (Lume) Pushes a notification to every device of this user; returns how many took it. */
   async deliverNotification(message: PushMessage): Promise<number> {
     let devices = Array.from(this.storage.pushSubscriptions.list());

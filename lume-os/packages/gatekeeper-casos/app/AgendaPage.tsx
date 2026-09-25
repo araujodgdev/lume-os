@@ -37,6 +37,8 @@ export type AgendaClient = {
   feriados(): Promise<Feriado[]>;
   adicionarFeriado(feriado: NovoFeriado): Promise<Reprogramado[]>;
   removerFeriado(id: string): Promise<Reprogramado[]>;
+  preferencias(): Promise<{ resumoConversa: boolean }>;
+  salvarPreferencias(preferencias: { resumoConversa: boolean }): Promise<{ resumoConversa: boolean }>;
 };
 
 type Props = {
@@ -325,6 +327,7 @@ function AgendaLista({
         ))
       )}
 
+      {usuario && <ResumoDoAgente api={api} />}
       <Feriados api={api} admin={admin} hoje={hoje} onMudou={() => void carregar()} />
     </main>
   );
@@ -691,6 +694,46 @@ function CompromissoEditor({
         </div>
       </div>
     </main>
+  );
+}
+
+/** The viewer's opt-in to a daily summary conversation with the agent. */
+function ResumoDoAgente({ api }: { api: AgendaClient }) {
+  const [ativo, setAtivo] = useState<boolean | null>(null);
+  const [erro, setErro] = useState<string>();
+
+  useEffect(() => {
+    let cancelado = false;
+    api.preferencias().then((p) => !cancelado && setAtivo(p.resumoConversa)).catch(() => !cancelado && setAtivo(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [api]);
+
+  async function alternar(valor: boolean) {
+    setErro(undefined);
+    try {
+      setAtivo((await api.salvarPreferencias({ resumoConversa: valor })).resumoConversa);
+    } catch (caught) {
+      setErro(messageOf(caught));
+    }
+  }
+
+  if (ativo === null) return null;
+  return (
+    <section aria-label="Resumo do agente" className="flex flex-col gap-2 border-t border-kumo-line pt-6">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-kumo-subtle">Resumo do agente</p>
+      <Checkbox
+        label="Todo dia útil às 7h, o agente abre uma conversa com o resumo dos meus prazos e compromissos"
+        checked={ativo}
+        onChange={(valor) => void alternar(valor)}
+      />
+      <p className="text-xs text-kumo-subtle">
+        A conversa fica no espaço "Resumos do agente" e o aviso do celular abre direto nela. Cada resumo é
+        uma execução do agente, com o custo de uma conversa curta. Dias sem nada pendente não geram resumo.
+      </p>
+      {erro && <p role="alert" className="text-sm text-kumo-danger">{erro}</p>}
+    </section>
   );
 }
 

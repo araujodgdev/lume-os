@@ -61,6 +61,8 @@ function client(overrides: Partial<AgendaClient> = {}): AgendaClient {
       { id: "p1", titulo: "Contestação", de: "2026-03-10", para: "2026-03-11" },
     ]),
     removerFeriado: vi.fn<AgendaClient["removerFeriado"]>(async () => []),
+    preferencias: vi.fn<AgendaClient["preferencias"]>(async () => ({ resumoConversa: false })),
+    salvarPreferencias: vi.fn<AgendaClient["salvarPreferencias"]>(async (p) => p),
     ...overrides,
   };
 }
@@ -176,6 +178,15 @@ describe("AgendaPage", () => {
     expect(page.textContent).toContain("Vence em terça, 10/03/2026");
     await act(async () => button("Agendar").click());
     expect(api.criar).toHaveBeenCalledWith(expect.objectContaining({ titulo: "Contestação", regra: expect.any(Object) }));
+  });
+
+  it("liga o resumo diário do agente", async () => {
+    const api = client();
+    const page = await render(api);
+    const caixa = [...page.querySelectorAll("label")].find((l) => l.textContent?.startsWith("Todo dia útil"))!.querySelector("input")!;
+    await act(async () => caixa.click());
+    expect(api.salvarPreferencias).toHaveBeenCalledWith({ resumoConversa: true });
+    expect(caixa.checked).toBe(true);
   });
 
   it("pede ao agente para ler as intimações", async () => {

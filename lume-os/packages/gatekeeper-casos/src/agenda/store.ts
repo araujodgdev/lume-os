@@ -26,6 +26,23 @@ function horaEmBrasilia(agora: number): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(agora));
 }
 
+/** Reminder preferences, per user. */
+export type PreferenciasAgenda = {
+  /** Every working day at 07:00, the agent opens a conversation with the day's summary. */
+  resumoConversa: boolean;
+};
+
+/** What the agent is asked in the daily summary conversation. */
+export function promptResumo(usuario: string, hoje: string, limite: string): string {
+  return (
+    `Bom dia. Monte o resumo da minha agenda de hoje, ${formatarData(hoje)}. ` +
+    `Use AGENDA.listar({ responsavel: ${JSON.stringify(usuario)}, ate: ${JSON.stringify(limite)} }) para ver o que é meu, ` +
+    "vencido ou vencendo até lá, e leia em CASOS os casos ligados. Diga o que fazer primeiro, " +
+    "o que depende de documentos do Cofre e o que convém confirmar (a memória de cada prazo). " +
+    "Não crie nem altere nada sem eu pedir."
+  );
+}
+
 /** Brazil has kept UTC-3 all year since 2019. */
 function inicioEmBrasilia(data: string, hora: string): number {
   return Date.parse(`${data}T${hora}:00-03:00`);
@@ -66,6 +83,10 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
       CREATE TABLE IF NOT EXISTS avisos_gerados (
         chave TEXT PRIMARY KEY,
         criado_em INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS preferencias (
+        usuario TEXT PRIMARY KEY,
+        resumo_conversa INTEGER NOT NULL DEFAULT 0
       );
     `);
   }
@@ -198,6 +219,23 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
       .map((row) => JSON.parse(row.dados) as GatekeeperNotification);
   }
 
+  /** One user's reminder preferences. */
+  preferencias(usuario: string): PreferenciasAgenda {
+    const row = this.ctx.storage.sql
+      .exec<{ resumo_conversa: number }>("SELECT resumo_conversa FROM preferencias WHERE usuario = ?", usuario)
+      .toArray()[0];
+    return { resumoConversa: row?.resumo_conversa === 1 };
+  }
+
+  salvarPreferencias(usuario: string, preferencias: PreferenciasAgenda): PreferenciasAgenda {
+    this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO preferencias (usuario, resumo_conversa) VALUES (?, ?)",
+      usuario,
+      preferencias.resumoConversa ? 1 : 0,
+    );
+    return this.preferencias(usuario);
+  }
+
   /** Drops delivered reminders. */
   confirmarAvisos(ids: string[]): void {
     for (const id of ids.slice(0, 500)) this.ctx.storage.sql.exec("DELETE FROM avisos WHERE id = ?", String(id));
@@ -212,6 +250,10 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
     // The morning summary, once per working day.
     if (horaEmBrasilia(agora) >= HORA_RESUMO && calendario.ehDiaUtil(hoje) && this.#marcar(`resumo:${hoje}`, agora)) {
       const limite = calendario.somarDiasUteis(hoje, 7);
+      const conversa = new Set(this.ctx.storage.sql
+        .exec<{ usuario: string }>("SELECT usuario FROM preferencias WHERE resumo_conversa = 1")
+        .toArray()
+        .map((row) => row.usuario));
       const porPessoa = new Map<string, Compromisso[]>();
       for (const c of this.consultar({ status: "pendente", ate: limite })) {
         for (const pessoa of responsaveisDe(c, doCaso)) {
@@ -242,6 +284,9 @@ export class AgendaStore extends DurableObject<Cloudflare.Env> {
           body: linhas.join("\n"),
           url: "/gatekeepers/agenda",
           tag: "agenda-resumo",
+          ...(conversa.has(pessoa) ? {
+            conversation: { title: `Prazos de ${formatarData(hoje)}`, prompt: promptResumo(pessoa, hoje, limite) },
+          } : {}),
         }, agora);
       }
     }

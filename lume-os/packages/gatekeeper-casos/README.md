@@ -61,6 +61,7 @@ The same Worker serves a second vendor, `AgendaVendor`: the firm's calendar of p
   - a reminder two hours before each hearing and meeting.
 
   A reminder stays queued until the Workshop acknowledges it, is generated once (`avisos_gerados`), and goes stale after a day. Lawyers turn push on per device in Perfil → Avisos.
+- **Daily summary conversation.** A lawyer can opt in on the Agenda page (`preferencias`, per login). Their 07:00 summary then carries a `conversation`: the Workshop starts an agent chat, "Prazos de dd/mm/aaaa", in their "Resumos do agente" workspace, with a prompt to review their entries (`AGENDA.listar({ responsavel, ate })`) and linked cases without changing anything, and the push opens it. Each summary is one agent run, so it is off by default, and days with nothing pending start none.
 - **Who is viewing.** The Workshop passes the viewer's login in `AppUiContext.username` (a Lume kernel change), which the page uses for "Só os meus". Responsible lawyers are logins, as in Casos.
 
 ## Layout

@@ -240,3 +240,23 @@ describe("avisos", () => {
     expect(await store.retirarAvisos({}, Date.parse("2026-03-10T10:00:00Z"))).toHaveLength(1);
   });
 });
+
+describe("resumo do agente", () => {
+  it("pede a conversa só para quem ativou", async () => {
+    const domain = "agenda-conversa";
+    const store = testEnv.AGENDA_STORE.getByName(domain);
+    const ana = new AgendaManagementApi(store, testEnv.CASE_REGISTRY.getByName(domain), false, "ana");
+    expect(await ana.preferencias()).toEqual({ resumoConversa: false });
+    expect(await ana.salvarPreferencias({ resumoConversa: true })).toEqual({ resumoConversa: true });
+    await ana.criar({ tipo: "tarefa", titulo: "Protocolar", data: "2026-03-10", responsaveis: ["ana", "bruno"] });
+
+    const avisos = await store.retirarAvisos({}, Date.parse("2026-03-10T10:30:00Z"));
+    const deAna = avisos.find((a) => a.id === "resumo:2026-03-10:ana")!;
+    expect(deAna.conversation?.title).toBe("Prazos de 10/03/2026");
+    expect(deAna.conversation?.prompt).toContain('AGENDA.listar({ responsavel: "ana", ate: "2026-03-19" })');
+    expect(avisos.find((a) => a.id === "resumo:2026-03-10:bruno")?.conversation).toBeUndefined();
+
+    const semLogin = new AgendaManagementApi(store, testEnv.CASE_REGISTRY.getByName(domain), false, null);
+    await expect(semLogin.salvarPreferencias({ resumoConversa: true })).rejects.toThrow("usuário");
+  });
+});

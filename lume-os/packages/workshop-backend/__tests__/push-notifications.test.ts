@@ -49,6 +49,33 @@ describe("pollGatekeeperNotifications", () => {
     expect(ack).toHaveBeenCalledWith(["resumo:ana", "lembrete:1"]);
   });
 
+  it("starts the requested conversation and points the notification at it", async () => {
+    const vapid = await generateVapidKeys();
+    const start = vi.fn(async (username: string) => (username === "ana" ? "/workspace/abc" : null));
+    const env = {
+      VAPID_PUBLIC_KEY: vapid.publicKey,
+      VAPID_PRIVATE_KEY: vapid.privateKey,
+      GATEKEEPER_AGENDA: {
+        describe: async () => ({ providesNotifications: true }),
+        takeNotifications: async () => [{
+          id: "resumo", usernames: ["ana", "ghost"], title: "Agenda", body: "Hoje: 1", url: "/gatekeepers/agenda",
+          conversation: { title: "Prazos de 10/03/2026", prompt: "Resuma" },
+        }],
+        ackNotifications: async () => {},
+      },
+    } as unknown as Cloudflare.Env;
+    const { users, delivered } = fakeUsers();
+
+    await pollGatekeeperNotifications(env, users, { start });
+
+    expect(start).toHaveBeenCalledWith("ana", { title: "Prazos de 10/03/2026", prompt: "Resuma" });
+    // A user the Workshop does not know gets no conversation; the notification keeps its own link.
+    expect(delivered.map((d) => [d.username, (d.message as { url: string }).url])).toEqual([
+      ["ana", "/workspace/abc"],
+      ["ghost", "/gatekeepers/agenda"],
+    ]);
+  });
+
   it("does nothing without VAPID keys", async () => {
     const take = vi.fn();
     const env = { GATEKEEPER_AGENDA: { describe: async () => ({ providesNotifications: true }), takeNotifications: take } } as unknown as Cloudflare.Env;

@@ -30,7 +30,7 @@ import { serveSiteLogo, SITE_LOGO_PATH } from "./site-logo.js";
 import { createWorkshopLogger } from "./observability";
 import { wrapDoStubForTelemetry } from "./do-telemetry";
 
-import { pollGatekeeperNotifications, vapidConfig } from "./push-notifications.js";
+import { conversationStarter, pollGatekeeperNotifications, vapidConfig, type OverseerNamespace } from "./push-notifications.js";
 
 const logger = createWorkshopLogger("workshop.server");
 
@@ -898,7 +898,9 @@ export default {
 
   // (Lume) Every few minutes: deliver the reminders gatekeepers such as the Agenda have queued.
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(pollGatekeeperNotifications(env, ctx.exports.UserDurableObject));
+    ctx.waitUntil(pollGatekeeperNotifications(env, ctx.exports.UserDurableObject,
+        conversationStarter(ctx.exports.UserDurableObject,
+            ctx.exports.OverseerDurableObject as unknown as OverseerNamespace)));
   },
 } satisfies ExportedHandler<Env>;
 

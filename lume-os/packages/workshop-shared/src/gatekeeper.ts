@@ -100,6 +100,12 @@ export type GatekeeperNotification = {
   url?: string;
   /** Replaces an earlier notification with the same tag on the device. */
   tag?: string;
+  /**
+   * Starts an agent conversation for each user first, in a workspace the Workshop keeps for these,
+   * and points the notification at it. The prompt runs as the user, on their default model; its
+   * actions still go through approvals.
+   */
+  conversation?: { title: string; prompt: string };
 }
 
 /**
